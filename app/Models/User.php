@@ -4,6 +4,7 @@ namespace App\Models;
 
 // use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 
@@ -22,6 +23,24 @@ class User extends Authenticatable
         'username',
         'email',
         'password',
+        'currency',
+        'timezone',
+        'email_alerts',
+        'budget_period',
+        'week_starts_on',
+    ];
+
+    /**
+     * Mirrors the column defaults so new models behave before a refresh.
+     *
+     * @var array<string, mixed>
+     */
+    protected $attributes = [
+        'currency' => 'USD',
+        'timezone' => 'UTC',
+        'email_alerts' => true,
+        'budget_period' => 'monthly',
+        'week_starts_on' => 6,
     ];
 
     /**
@@ -44,22 +63,28 @@ class User extends Authenticatable
         return [
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
+            'email_alerts' => 'boolean',
+            'week_starts_on' => 'integer',
         ];
     }
 
-    /**
-     * Get the expenses for the user.
-     */
-    public function expenses()
+    protected static function booted(): void
+    {
+        static::created(fn (User $user) => Category::createDefaultsFor($user));
+    }
+
+    public function expenses(): HasMany
     {
         return $this->hasMany(Expense::class);
     }
 
-    /**
-     * Get the budgets for the user.
-     */
-    public function budgets()
+    public function budgets(): HasMany
     {
         return $this->hasMany(Budget::class);
+    }
+
+    public function categories(): HasMany
+    {
+        return $this->hasMany(Category::class);
     }
 }

@@ -7,6 +7,10 @@
 @section('content')
     <form method="POST" action="{{ route('register') }}" class="space-y-5">
         @csrf
+        <input type="hidden" name="timezone" id="timezone">
+        <script>
+            try { document.getElementById('timezone').value = Intl.DateTimeFormat().resolvedOptions().timeZone || ''; } catch (e) {}
+        </script>
 
         <div>
             <label for="name" class="label">Your name</label>

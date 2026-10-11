@@ -2,61 +2,70 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Requests\ExpenseRequest;
 use App\Models\Expense;
+use App\Support\EntryWindow;
+use Illuminate\Http\JsonResponse;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Validator;
+use Illuminate\View\View;
 
 class ExpenseController extends Controller
 {
-    public function store(Request $request)
+    public function store(ExpenseRequest $request): JsonResponse|RedirectResponse
     {
-        $validator = Validator::make($request->all(), [
-            'amount' => 'required|numeric|min:0.01',
-            'category' => 'required|in:Restaurants,Housing,Transportation,Shopping,Entertainment,Others',
-            'date' => 'required|date',
-            'note' => 'nullable|string|max:500',
-        ]);
+        $expense = $request->user()->expenses()->create($request->validated());
 
-        if ($validator->fails()) {
-            return response()->json([
-                'success' => false,
-                'errors' => $validator->errors()
-            ], 422);
+        if ($request->wantsJson()) {
+            return response()->json(['success' => true, 'expense' => $expense], 201);
         }
 
-        $expense = Expense::create([
-            'user_id' => $request->user()->id,
-            'amount' => $request->amount,
-            'category' => $request->category,
-            'date' => $request->date,
-            'note' => $request->note,
-        ]);
+        return back()->with('success', 'Added.');
+    }
 
-        return response()->json([
-            'success' => true,
-            'message' => 'Expense added successfully!',
-            'expense' => $expense
+    public function edit(Request $request, Expense $expense): View
+    {
+        $this->authorize('update', $expense);
+
+        $user = $request->user();
+
+        return view('expenses.edit', [
+            'expense' => $expense,
+            'categories' => $user->categories()->ordered()
+                ->where(fn ($q) => $q->whereNull('archived_at')->orWhere('id', $expense->category_id))
+                ->get(),
+            'openRange' => EntryWindow::openRange($user),
+            'returnTo' => $this->safeReturn($request->query('return')),
         ]);
     }
 
-    public function destroy($id)
+    public function update(ExpenseRequest $request, Expense $expense): RedirectResponse
     {
-        $expense = Expense::where('id', $id)
-            ->where('user_id', auth()->id())
-            ->first();
+        $this->authorize('update', $expense);
 
-        if (!$expense) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Expense not found'
-            ], 404);
-        }
+        $expense->update($request->validated());
+
+        return redirect($this->safeReturn($request->input('return')))->with('success', 'Saved.');
+    }
+
+    public function destroy(Request $request, Expense $expense): JsonResponse|RedirectResponse
+    {
+        $this->authorize('delete', $expense);
 
         $expense->delete();
 
-        return response()->json([
-            'success' => true,
-            'message' => 'Expense deleted successfully!'
-        ]);
+        if ($request->wantsJson()) {
+            return response()->json(['success' => true]);
+        }
+
+        return redirect($this->safeReturn($request->input('return')))->with('success', 'Moved to Recently deleted.');
+    }
+
+    /**
+     * Only follow "return" links that point back into this app.
+     */
+    private function safeReturn(mixed $url): string
+    {
+        return is_string($url) && str_starts_with($url, url('/').'/') ? $url : route('dashboard');
     }
 }

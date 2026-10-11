@@ -3,10 +3,12 @@
 namespace App\Http\Controllers;
 
 use App\Http\Requests\ProfileUpdateRequest;
+use App\Support\BudgetPeriod;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Redirect;
+use Illuminate\Validation\Rule;
 use Illuminate\View\View;
 
 class ProfileController extends Controller
@@ -35,6 +37,29 @@ class ProfileController extends Controller
         $request->user()->save();
 
         return Redirect::route('profile.index')->with('status', 'profile-updated');
+    }
+
+    /**
+     * Update currency, timezone, budget period and alert preferences.
+     */
+    public function updatePreferences(Request $request): RedirectResponse
+    {
+        $validated = $request->validate([
+            'currency' => ['required', Rule::in(array_keys(config('budgetwise.currencies')))],
+            'timezone' => ['required', 'timezone:all'],
+            'budget_period' => ['required', Rule::in([BudgetPeriod::MONTHLY, BudgetPeriod::WEEKLY])],
+            'week_starts_on' => ['required', 'integer', Rule::in([0, 1, 6])],
+            'email_alerts' => ['boolean'],
+        ]);
+
+        $user = $request->user();
+        $periodChanged = $user->budget_period !== $validated['budget_period'];
+
+        $user->update($validated + ['email_alerts' => false]);
+
+        return $periodChanged
+            ? Redirect::route('budgets.index')->with('success', 'Switched to a '.($user->budget_period === 'weekly' ? 'weekly' : 'monthly').' budget. Check the amounts below and save.')
+            : Redirect::route('profile.index')->with('status', 'preferences-updated');
     }
 
     /**
@@ -72,6 +97,6 @@ class ProfileController extends Controller
             'password' => bcrypt($request->password),
         ]);
 
-        return Redirect::route('profile.index')->with('success', 'Password updated successfully!');
+        return Redirect::route('profile.index')->with('success', 'Password updated.');
     }
 }

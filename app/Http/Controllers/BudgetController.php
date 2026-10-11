@@ -3,114 +3,68 @@
 namespace App\Http\Controllers;
 
 use App\Models\Budget;
-use Carbon\Carbon;
+use App\Services\PeriodSummary;
+use App\Support\BudgetPeriod;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Validator;
+use Illuminate\Support\Facades\DB;
+use Illuminate\View\View;
 
 class BudgetController extends Controller
 {
-    public function index(Request $request)
+    public function index(Request $request): View
     {
         $user = $request->user();
-        
-        // Get all active budgets for the user
-        $budgets = Budget::where('user_id', $user->id)
-            ->active()
-            ->get()
-            ->keyBy('category');
-        
-        // Define all categories including Total
-        $categories = ['Total', 'Restaurants', 'Housing', 'Transportation', 'Shopping', 'Entertainment', 'Others'];
-        
-        // Create budget data array
-        $budgetData = [];
-        $period = 'monthly';
-        
-        foreach ($categories as $category) {
-            if (isset($budgets[$category])) {
-                $budgetData[$category] = [
-                    'amount' => $budgets[$category]->amount,
-                    'period' => $budgets[$category]->period,
-                ];
-                if ($category === 'Total') {
-                    $period = $budgets[$category]->period;
-                }
-            } else {
-                $budgetData[$category] = [
-                    'amount' => 0,
-                    'period' => $period,
-                ];
-            }
-        }
-        
-        return view('budgets.set', compact('budgetData', 'period'));
+        $period = BudgetPeriod::current($user);
+
+        $budgets = Budget::forPeriod($user, $period)
+            ->mapWithKeys(fn (Budget $b) => [$b->category_id ?? 'total' => (float) $b->amount])
+            ->all();
+
+        $suggested = empty($budgets) ? Budget::convertedSuggestion($user, $period) : [];
+
+        $lastSpent = (new PeriodSummary($user, $period->previous()))->rows
+            ->mapWithKeys(fn ($row) => [$row['category']->id => $row['spent']]);
+
+        return view('budgets.set', [
+            'period' => $period,
+            'amounts' => $budgets ?: $suggested,
+            'isSuggestion' => empty($budgets) && ! empty($suggested),
+            'categories' => $user->categories()->active()->ordered()->get(),
+            'lastSpent' => $lastSpent,
+        ]);
     }
 
-    public function store(Request $request)
+    public function store(Request $request): RedirectResponse
     {
-        $validator = Validator::make($request->all(), [
-            'total_budget' => 'required|numeric|min:0',
-            'period' => 'required|in:monthly,weekly',
-            'restaurants' => 'nullable|numeric|min:0',
-            'housing' => 'nullable|numeric|min:0',
-            'transportation' => 'nullable|numeric|min:0',
-            'shopping' => 'nullable|numeric|min:0',
-            'entertainment' => 'nullable|numeric|min:0',
-            'others' => 'nullable|numeric|min:0',
+        $user = $request->user();
+        $categoryIds = $user->categories()->active()->pluck('id');
+
+        $validated = $request->validate([
+            'total_budget' => ['required', 'numeric', 'min:0', 'max:99999999.99'],
+            'budgets' => ['array'],
+            'budgets.*' => ['nullable', 'numeric', 'min:0', 'max:99999999.99'],
+        ], [
+            'total_budget.required' => 'Enter a total, even if it\'s a rough guess.',
         ]);
 
-        if ($validator->fails()) {
-            return redirect()->back()
-                ->withErrors($validator)
-                ->withInput();
-        }
+        $period = BudgetPeriod::current($user);
+        $key = ['user_id' => $user->id, 'period' => $period->type, 'period_start' => $period->start->toDateString()];
 
-        $user = $request->user();
-        $period = $request->period;
-        $startDate = Carbon::now()->startOfMonth();
+        DB::transaction(function () use ($validated, $categoryIds, $key) {
+            Budget::query()->where($key)->whereNull('category_id')->delete();
+            Budget::create($key + ['category_id' => null, 'amount' => $validated['total_budget']]);
 
-        // Update or create Total budget
-        Budget::updateOrCreate(
-            [
-                'user_id' => $user->id,
-                'category' => 'Total'
-            ],
-            [
-                'amount' => $request->total_budget,
-                'period' => $period,
-                'start_date' => $startDate,
-                'active' => true,
-            ]
-        );
+            foreach ($categoryIds as $id) {
+                $amount = (float) ($validated['budgets'][$id] ?? 0);
+                Budget::query()->where($key)->where('category_id', $id)->delete();
 
-        // Update or create category budgets
-        $categories = [
-            'Restaurants' => $request->restaurants,
-            'Housing' => $request->housing,
-            'Transportation' => $request->transportation,
-            'Shopping' => $request->shopping,
-            'Entertainment' => $request->entertainment,
-            'Others' => $request->others,
-        ];
-
-        foreach ($categories as $category => $amount) {
-            if ($amount !== null && $amount > 0) {
-                Budget::updateOrCreate(
-                    [
-                        'user_id' => $user->id,
-                        'category' => $category
-                    ],
-                    [
-                        'amount' => $amount,
-                        'period' => $period,
-                        'start_date' => $startDate,
-                        'active' => true,
-                    ]
-                );
+                if ($amount > 0) {
+                    Budget::create($key + ['category_id' => $id, 'amount' => $amount]);
+                }
             }
-        }
+        });
 
-        return redirect()->route('dashboard')
-            ->with('success', 'Budget settings saved successfully!');
+        return redirect()->route('dashboard')->with('success', 'Budget saved.');
     }
 }

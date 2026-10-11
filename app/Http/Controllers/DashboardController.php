@@ -2,8 +2,9 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\Expense;
-use App\Services\BudgetSummaryService;
+use App\Services\PeriodSummary;
+use App\Support\BudgetPeriod;
+use App\Support\EntryWindow;
 use Illuminate\Http\Request;
 
 class DashboardController extends Controller
@@ -11,19 +12,23 @@ class DashboardController extends Controller
     public function index(Request $request)
     {
         $user = $request->user();
-        
-        // Get budget summary
-        $budgetService = new BudgetSummaryService($user->id);
-        $budgetSummary = $budgetService->getSummary();
+        $period = BudgetPeriod::fromKey($user, $request->query('period'));
+        $summary = new PeriodSummary($user, $period);
 
-        // Get recent expenses (last 10) - Optimized with select
-        $recentExpenses = Expense::select('id', 'user_id', 'amount', 'category', 'date', 'note', 'created_at')
-            ->where('user_id', $user->id)
-            ->orderBy('date', 'desc')
-            ->orderBy('created_at', 'desc')
-            ->limit(10)
+        $entries = $user->expenses()
+            ->with('category')
+            ->whereBetween('date', $period->range())
+            ->orderByDesc('date')
+            ->orderByDesc('id')
+            ->limit(15)
             ->get();
-        
-        return view('dashboard', compact('budgetSummary', 'recentExpenses'));
+
+        return view('dashboard', [
+            'summary' => $summary,
+            'period' => $period,
+            'entries' => $entries,
+            'categories' => $user->categories()->active()->ordered()->get(),
+            'openRange' => EntryWindow::openRange($user),
+        ]);
     }
 }

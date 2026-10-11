@@ -8,7 +8,7 @@
 <body class="min-h-screen">
     @php
         $links = [
-            ['route' => 'dashboard', 'label' => 'This month'],
+            ['route' => 'dashboard', 'label' => Auth::user()?->budget_period === 'weekly' ? 'This week' : 'This month'],
             ['route' => 'budgets.index', 'label' => 'Budget'],
             ['route' => 'expense-tips', 'label' => 'Tips'],
         ];

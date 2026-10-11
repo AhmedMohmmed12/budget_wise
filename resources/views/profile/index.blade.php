@@ -51,6 +51,84 @@
         </form>
     </section>
 
+    {{-- Preferences --}}
+    <section class="mt-12" id="preferences">
+        <h2 class="border-b border-ink pb-1.5 text-lg">Preferences</h2>
+        @if (session('status') === 'preferences-updated')
+            <div class="note-pine mt-4">Preferences saved.</div>
+        @endif
+        <form method="POST" action="{{ route('profile.preferences') }}" class="mt-5 space-y-5"
+              x-data="{ period: '{{ old('budget_period', $user->budget_period) }}' }">
+            @csrf
+            @method('PATCH')
+
+            <div class="grid gap-5 sm:grid-cols-2">
+                <div>
+                    <label for="currency" class="label">Currency</label>
+                    <select id="currency" name="currency" class="field">
+                        @foreach (config('budgetwise.currencies') as $code => [$symbol])
+                            <option value="{{ $code }}" @selected(old('currency', $user->currency) === $code)>{{ $code }} ({{ $symbol }})</option>
+                        @endforeach
+                    </select>
+                    @error('currency') <p class="field-error">{{ $message }}</p> @enderror
+                </div>
+
+                <div>
+                    <label for="timezone" class="label">Timezone</label>
+                    <select id="timezone" name="timezone" class="field">
+                        @foreach (\DateTimeZone::listIdentifiers() as $zone)
+                            <option value="{{ $zone }}" @selected(old('timezone', $user->timezone) === $zone)>{{ str_replace('_', ' ', $zone) }}</option>
+                        @endforeach
+                    </select>
+                    <p class="mt-1 text-xs text-ink-soft">Decides when your day and month roll over.</p>
+                    @error('timezone') <p class="field-error">{{ $message }}</p> @enderror
+                </div>
+            </div>
+
+            <div class="grid gap-5 sm:grid-cols-2">
+                <div>
+                    <span class="label">Budget period</span>
+                    <div class="mt-1 flex gap-5 text-[15px]">
+                        <label class="flex items-center gap-2">
+                            <input type="radio" name="budget_period" value="monthly" x-model="period" class="border-ink text-pine focus:ring-pine"> Monthly
+                        </label>
+                        <label class="flex items-center gap-2">
+                            <input type="radio" name="budget_period" value="weekly" x-model="period" class="border-ink text-pine focus:ring-pine"> Weekly
+                        </label>
+                    </div>
+                    @error('budget_period') <p class="field-error">{{ $message }}</p> @enderror
+                </div>
+
+                <div x-show="period === 'weekly'" x-cloak>
+                    <label for="week_starts_on" class="label">Weeks start on</label>
+                    <select id="week_starts_on" name="week_starts_on" class="field">
+                        @foreach ([6 => 'Saturday', 0 => 'Sunday', 1 => 'Monday'] as $day => $label)
+                            <option value="{{ $day }}" @selected((int) old('week_starts_on', $user->week_starts_on) === $day)>{{ $label }}</option>
+                        @endforeach
+                    </select>
+                    @error('week_starts_on') <p class="field-error">{{ $message }}</p> @enderror
+                </div>
+            </div>
+
+            <label class="flex items-start gap-2 text-[15px]">
+                <input type="checkbox" name="email_alerts" value="1" @checked(old('email_alerts', $user->email_alerts))
+                       class="mt-1 rounded border-ink text-pine focus:ring-pine">
+                <span>
+                    Email me when I reach 80% and 100% of my budget
+                    <span class="block text-xs text-ink-soft">One email per threshold per {{ $user->budget_period === 'weekly' ? 'week' : 'month' }}, for the total and each category.</span>
+                </span>
+            </label>
+
+            <p class="text-xs text-ink-soft">
+                Entries can be written for the current month. During the first {{ config('budgetwise.grace_days') }} days of a new month you can still fix last month; after that it's closed.
+            </p>
+
+            <div class="flex justify-end">
+                <button type="submit" class="btn-pine">Save preferences</button>
+            </div>
+        </form>
+    </section>
+
     {{-- Password --}}
     <section class="mt-12">
         <h2 class="border-b border-ink pb-1.5 text-lg">Change password</h2>
