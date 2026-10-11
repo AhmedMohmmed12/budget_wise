@@ -36,7 +36,9 @@
                     </button>
                     <div x-cloak x-show="open" x-transition.opacity
                          class="absolute right-0 z-20 mt-2 w-44 rounded-xl border-[1.5px] border-ink bg-paper-2 py-1 text-sm">
-                        <a href="{{ route('profile.index') }}" class="block px-4 py-2 hover:bg-rule-light">Your profile</a>
+                        <a href="{{ route('categories.index') }}" class="block px-4 py-2 hover:bg-rule-light">Categories</a>
+                        <a href="{{ route('trash.index') }}" class="block px-4 py-2 hover:bg-rule-light">Recently deleted</a>
+                        <a href="{{ route('profile.index') }}" class="block border-t border-rule-light px-4 py-2 hover:bg-rule-light">Settings</a>
                         <form method="POST" action="{{ route('logout') }}">
                             @csrf
                             <button type="submit" class="block w-full px-4 py-2 text-left hover:bg-rule-light">Log out</button>

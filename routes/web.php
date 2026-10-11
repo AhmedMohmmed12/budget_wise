@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\BudgetController;
+use App\Http\Controllers\CategoryController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\EntryController;
 use App\Http\Controllers\ExpenseController;
@@ -30,6 +31,16 @@ Route::middleware(['auth'])->group(function () {
             ->withTrashed()->name('trash.expenses.restore');
         Route::delete('/entries/trash/expenses/{expense}', [TrashController::class, 'destroyExpense'])
             ->withTrashed()->name('trash.expenses.destroy');
+    });
+
+    // Categories
+    Route::get('/categories', [CategoryController::class, 'index'])->name('categories.index');
+    Route::middleware('throttle:60,1')->group(function () {
+        Route::post('/categories', [CategoryController::class, 'store'])->name('categories.store');
+        Route::patch('/categories/{category}', [CategoryController::class, 'update'])->name('categories.update');
+        Route::post('/categories/{category}/archive', [CategoryController::class, 'archive'])->name('categories.archive');
+        Route::post('/categories/{category}/move', [CategoryController::class, 'move'])->name('categories.move');
+        Route::delete('/categories/{category}', [CategoryController::class, 'destroy'])->name('categories.destroy');
     });
 
     // Budget

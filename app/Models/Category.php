@@ -52,6 +52,15 @@ class Category extends Model
         return $this->hasMany(Budget::class);
     }
 
+    /**
+     * Used categories can be archived but not deleted (deleted entries count
+     * too, since they can still be restored).
+     */
+    public function isInUse(): bool
+    {
+        return $this->expenses()->withTrashed()->exists() || $this->budgets()->exists();
+    }
+
     public function isArchived(): bool
     {
         return $this->archived_at !== null;
