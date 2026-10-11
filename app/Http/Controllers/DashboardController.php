@@ -28,6 +28,9 @@ class DashboardController extends Controller
             'period' => $period,
             'entries' => $entries,
             'categories' => $user->categories()->active()->ordered()->get(),
+            'goals' => $summary->isCurrent
+                ? $user->savingsGoals()->whereNull('completed_at')->withSum('contributions', 'amount')->orderBy('id')->limit(3)->get()
+                : collect(),
             'openRange' => EntryWindow::openRange($user),
         ]);
     }

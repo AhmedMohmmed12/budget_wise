@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Models\Budget;
 use App\Models\Category;
 use App\Models\Expense;
+use App\Models\GoalContribution;
 use App\Models\Income;
 use App\Models\RecurringEntry;
 use App\Models\User;
@@ -40,6 +41,9 @@ class PeriodSummary
     public float $monthSpent;
 
     public float $monthIncome;
+
+    /** Put toward savings goals that month. */
+    public float $monthSetAside;
 
     private ?Collection $upcoming = null;
 
@@ -89,14 +93,15 @@ class PeriodSummary
             ? $this->totalSpent
             : (float) $this->expenses()->whereBetween('date', $this->month->range())->sum('amount');
         $this->monthIncome = (float) Income::where('user_id', $user->id)->whereBetween('date', $this->month->range())->sum('amount');
+        $this->monthSetAside = (float) GoalContribution::where('user_id', $user->id)->whereBetween('date', $this->month->range())->sum('amount');
     }
 
     /**
-     * What's left of the month's income after spending.
+     * What's left of the month's income after spending and saving.
      */
     public function monthLeft(): float
     {
-        return $this->monthIncome - $this->monthSpent;
+        return $this->monthIncome - $this->monthSpent - $this->monthSetAside;
     }
 
     /**

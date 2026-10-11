@@ -7,11 +7,20 @@
 </head>
 <body class="min-h-screen">
     @php
+        $isActive = fn (array $link) => request()->routeIs($link['active'] ?? $link['route']);
         $links = [
             ['route' => 'dashboard', 'label' => Auth::user()?->budget_period === 'weekly' ? 'This week' : 'This month'],
             ['route' => 'entries.index', 'label' => 'Entries', 'active' => 'entries.*'],
+            ['route' => 'reports.index', 'label' => 'Reports'],
+            ['route' => 'goals.index', 'label' => 'Goals', 'active' => 'goals.*'],
             ['route' => 'budgets.index', 'label' => 'Budget'],
+        ];
+        $more = [
+            ['route' => 'categories.index', 'label' => 'Categories'],
+            ['route' => 'recurring.index', 'label' => 'Recurring', 'active' => 'recurring.*'],
+            ['route' => 'trash.index', 'label' => 'Recently deleted'],
             ['route' => 'expense-tips', 'label' => 'Tips'],
+            ['route' => 'profile.index', 'label' => 'Settings'],
         ];
     @endphp
 
@@ -24,7 +33,7 @@
             <nav class="hidden items-center gap-6 text-sm md:flex">
                 @foreach ($links as $link)
                     <a href="{{ route($link['route']) }}"
-                       class="{{ request()->routeIs($link['active'] ?? $link['route']) ? 'font-bold text-ink' : 'text-ink-soft hover:text-ink' }}">
+                       class="{{ $isActive($link) ? 'font-bold text-ink' : 'text-ink-soft hover:text-ink' }}">
                         {{ $link['label'] }}
                     </a>
                 @endforeach
@@ -35,23 +44,17 @@
                         <svg class="h-3 w-3" viewBox="0 0 12 12" aria-hidden="true"><path d="M3 4.5l3 3 3-3" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
                     </button>
                     <div x-cloak x-show="open" x-transition.opacity
-                         class="absolute right-0 z-20 mt-2 w-44 rounded-xl border-[1.5px] border-ink bg-paper-2 py-1 text-sm">
-                        <a href="{{ route('categories.index') }}" class="block px-4 py-2 hover:bg-rule-light">Categories</a>
-                        <a href="{{ route('recurring.index') }}" class="block px-4 py-2 hover:bg-rule-light">Recurring</a>
-                        <a href="{{ route('trash.index') }}" class="block px-4 py-2 hover:bg-rule-light">Recently deleted</a>
-                        <a href="{{ route('profile.index') }}" class="block border-t border-rule-light px-4 py-2 hover:bg-rule-light">Settings</a>
-                        <form method="POST" action="{{ route('logout') }}">
+                         class="absolute right-0 z-20 mt-2 w-48 rounded-xl border-[1.5px] border-ink bg-paper-2 py-1 text-sm">
+                        @foreach ($more as $link)
+                            <a href="{{ route($link['route']) }}" class="block px-4 py-2 hover:bg-rule-light {{ $isActive($link) ? 'font-bold' : '' }}">{{ $link['label'] }}</a>
+                        @endforeach
+                        <form method="POST" action="{{ route('logout') }}" class="border-t border-rule-light">
                             @csrf
                             <button type="submit" class="block w-full px-4 py-2 text-left hover:bg-rule-light">Log out</button>
                         </form>
                     </div>
                 </div>
             </nav>
-
-            <form method="POST" action="{{ route('logout') }}" class="md:hidden">
-                @csrf
-                <button type="submit" class="text-sm text-ink-soft">Log out</button>
-            </form>
         </div>
     </header>
 
@@ -78,14 +81,26 @@
     </footer>
 
     {{-- Mobile bottom bar --}}
-    <nav class="fixed inset-x-0 bottom-0 z-30 border-t-2 border-ink bg-paper md:hidden">
-        <div class="grid grid-cols-5 text-center text-[13px]">
-            @foreach (array_merge($links, [['route' => 'profile.index', 'label' => 'Profile']]) as $link)
+    <nav class="fixed inset-x-0 bottom-0 z-30 md:hidden" x-data="{ more: false }" @keydown.escape="more = false">
+        <div x-cloak x-show="more" @click.outside="more = false" x-transition.opacity
+             class="mx-3 mb-2 rounded-2xl border-[1.5px] border-ink bg-paper-2 py-1 text-[15px]">
+            <a href="{{ route('budgets.index') }}" class="block px-5 py-2.5">Budget</a>
+            @foreach ($more as $link)
+                <a href="{{ route($link['route']) }}" class="block px-5 py-2.5 {{ $isActive($link) ? 'font-bold' : '' }}">{{ $link['label'] }}</a>
+            @endforeach
+            <form method="POST" action="{{ route('logout') }}" class="border-t border-rule-light">
+                @csrf
+                <button type="submit" class="block w-full px-5 py-2.5 text-left text-ink-soft">Log out</button>
+            </form>
+        </div>
+        <div class="grid grid-cols-5 border-t-2 border-ink bg-paper text-center text-[13px]">
+            @foreach (array_slice($links, 0, 4) as $link)
                 <a href="{{ route($link['route']) }}"
-                   class="py-3.5 {{ request()->routeIs($link['active'] ?? $link['route']) ? 'font-bold text-ink underline decoration-pine decoration-2 underline-offset-4' : 'text-ink-soft' }}">
-                    {{ $link['label'] }}
+                   class="py-3.5 {{ $isActive($link) ? 'font-bold text-ink underline decoration-pine decoration-2 underline-offset-4' : 'text-ink-soft' }}">
+                    {{ $link === $links[0] ? (Auth::user()?->budget_period === 'weekly' ? 'Week' : 'Month') : $link['label'] }}
                 </a>
             @endforeach
+            <button type="button" @click="more = !more" :aria-expanded="more" class="py-3.5 text-ink-soft">More</button>
         </div>
     </nav>
 

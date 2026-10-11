@@ -5,10 +5,13 @@ use App\Http\Controllers\CategoryController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\EntryController;
 use App\Http\Controllers\ExpenseController;
+use App\Http\Controllers\GoalContributionController;
 use App\Http\Controllers\IncomeController;
 use App\Http\Controllers\PageController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\RecurringEntryController;
+use App\Http\Controllers\ReportController;
+use App\Http\Controllers\SavingsGoalController;
 use App\Http\Controllers\TrashController;
 use Illuminate\Support\Facades\Route;
 
@@ -56,6 +59,21 @@ Route::middleware(['auth'])->group(function () {
         Route::post('/recurring/{recurring}/pause', [RecurringEntryController::class, 'pause'])->name('recurring.pause');
         Route::delete('/recurring/{recurring}', [RecurringEntryController::class, 'destroy'])->name('recurring.destroy');
     });
+
+    // Goals
+    Route::get('/goals', [SavingsGoalController::class, 'index'])->name('goals.index');
+    Route::get('/goals/{goal}/edit', [SavingsGoalController::class, 'edit'])->name('goals.edit');
+    Route::middleware('throttle:60,1')->group(function () {
+        Route::post('/goals', [SavingsGoalController::class, 'store'])->name('goals.store');
+        Route::patch('/goals/{goal}', [SavingsGoalController::class, 'update'])->name('goals.update');
+        Route::post('/goals/{goal}/complete', [SavingsGoalController::class, 'complete'])->name('goals.complete');
+        Route::delete('/goals/{goal}', [SavingsGoalController::class, 'destroy'])->name('goals.destroy');
+        Route::post('/goals/{goal}/contributions', [GoalContributionController::class, 'store'])->name('goals.contributions.store');
+        Route::delete('/goal-contributions/{contribution}', [GoalContributionController::class, 'destroy'])->name('goals.contributions.destroy');
+    });
+
+    // Reports
+    Route::get('/reports', [ReportController::class, 'index'])->name('reports.index');
 
     // Categories
     Route::get('/categories', [CategoryController::class, 'index'])->name('categories.index');

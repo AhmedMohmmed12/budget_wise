@@ -21,7 +21,13 @@ class MinifyHtml
         if ($this->isHtmlResponse($response)) {
             $content = $response->getContent();
             $minified = $this->minify($content);
+            $original = $response->original ?? null;
             $response->setContent($minified);
+
+            // setContent() replaces the view; keep it so it can still be inspected.
+            if ($original !== null) {
+                $response->original = $original;
+            }
         }
 
         return $response;

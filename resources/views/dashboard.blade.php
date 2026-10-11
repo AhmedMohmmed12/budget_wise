@@ -100,19 +100,23 @@
             </div>
         @endif
 
-        @if ($s->monthIncome > 0)
+        @if ($s->monthIncome > 0 || $s->monthSetAside != 0)
             <div class="mt-6">
                 <p class="eyebrow">{{ $s->month->start->format('F') }} money</p>
-                <dl class="mt-2 grid grid-cols-3 border-y border-ink text-sm">
+                <dl class="mt-2 grid grid-cols-4 border-y border-ink text-sm">
                     <div class="py-2 pr-2">
                         <dt class="text-xs text-ink-soft">In</dt>
                         <dd class="num font-mono text-pine">+@money($s->monthIncome)</dd>
                     </div>
-                    <div class="border-x border-dotted border-rule px-3 py-2">
+                    <div class="border-l border-dotted border-rule px-2 py-2">
                         <dt class="text-xs text-ink-soft">Out</dt>
                         <dd class="num font-mono">@money($s->monthSpent)</dd>
                     </div>
-                    <div class="py-2 pl-3">
+                    <div class="border-x border-dotted border-rule px-2 py-2">
+                        <dt class="text-xs text-ink-soft">Set aside</dt>
+                        <dd class="num font-mono">@money($s->monthSetAside)</dd>
+                    </div>
+                    <div class="py-2 pl-2">
                         <dt class="text-xs text-ink-soft">Kept</dt>
                         <dd class="num font-mono font-bold {{ $s->monthLeft() < 0 ? 'text-rust' : '' }}">@money($s->monthLeft())</dd>
                     </div>
@@ -134,6 +138,23 @@
                         </li>
                     @endforeach
                 </ul>
+            </div>
+        @endif
+        @if ($goals->isNotEmpty())
+            <div class="mt-6">
+                <div class="flex items-baseline justify-between">
+                    <p class="eyebrow">Goals</p>
+                    <a href="{{ route('goals.index') }}" class="link text-xs text-ink-soft">all goals</a>
+                </div>
+                @foreach ($goals as $goal)
+                    <div class="mt-2 text-sm">
+                        <div class="flex justify-between">
+                            <span>{{ $goal->name }}</span>
+                            <span class="num font-mono text-ink-soft">@money($goal->savedAmount()) / {{ number_format($goal->target_amount, 0) }}</span>
+                        </div>
+                        <div class="bar mt-1 !h-1.5"><span class="!bg-pine" style="width: {{ $goal->percentage() }}%"></span></div>
+                    </div>
+                @endforeach
             </div>
         @endif
     </section>
