@@ -1,119 +1,64 @@
 @extends('layouts.auth')
 
-@section('title', 'Register')
-@section('max_width', '520px')
-@section('logo_icon', 'fa-user-plus')
-@section('logo_heading', 'Create Account')
-@section('logo_subheading', 'Join BudgetWise and take control of your finances')
+@section('title', 'Sign up')
+@section('heading', 'Start your book')
+@section('subheading', 'Takes about a minute. No card, no trial, nothing to cancel.')
 
 @section('content')
-    <form method="POST" action="{{ route('register') }}">
+    <form method="POST" action="{{ route('register') }}" class="space-y-5">
         @csrf
 
-        <!-- Name -->
-        <div class="form-group">
-            <label for="name">Full Name</label>
-            <div class="input-group-custom">
-                <i class="fas fa-user"></i>
-                <input 
-                    type="text" 
-                    class="form-control @error('name') is-invalid @enderror" 
-                    id="name" 
-                    name="name" 
-                    value="{{ old('name') }}" 
-                    placeholder="Enter your full name"
-                    required 
-                    autofocus>
-            </div>
+        <div>
+            <label for="name" class="label">Your name</label>
+            <input type="text" id="name" name="name" value="{{ old('name') }}"
+                   class="field" placeholder="Sara Ali" autocomplete="name" required autofocus>
             @error('name')
-                <div class="invalid-feedback d-block">{{ $message }}</div>
+                <p class="field-error">{{ $message }}</p>
             @enderror
         </div>
 
-        <!-- Username -->
-        <div class="form-group">
-            <label for="username">Username</label>
-            <div class="input-group-custom">
-                <i class="fas fa-at"></i>
-                <input 
-                    type="text" 
-                    class="form-control @error('username') is-invalid @enderror" 
-                    id="username" 
-                    name="username" 
-                    value="{{ old('username') }}" 
-                    placeholder="Choose a unique username"
-                    required>
+        <div class="grid gap-5 sm:grid-cols-2">
+            <div>
+                <label for="username" class="label">Username</label>
+                <input type="text" id="username" name="username" value="{{ old('username') }}"
+                       class="field" placeholder="sara" required>
+                @error('username')
+                    <p class="field-error">{{ $message }}</p>
+                @enderror
             </div>
-            @error('username')
-                <div class="invalid-feedback d-block">{{ $message }}</div>
-            @enderror
-        </div>
 
-        <!-- Email -->
-        <div class="form-group">
-            <label for="email">Email Address</label>
-            <div class="input-group-custom">
-                <i class="fas fa-envelope"></i>
-                <input 
-                    type="email" 
-                    class="form-control @error('email') is-invalid @enderror" 
-                    id="email" 
-                    name="email" 
-                    value="{{ old('email') }}" 
-                    placeholder="Enter your email address"
-                    required>
-            </div>
-            @error('email')
-                <div class="invalid-feedback d-block">{{ $message }}</div>
-            @enderror
-        </div>
-
-        <!-- Password -->
-        <div class="form-group">
-            <label for="password">Password</label>
-            <div class="input-group-custom">
-                <i class="fas fa-lock"></i>
-                <input 
-                    type="password"
-                    class="form-control @error('password') is-invalid @enderror" 
-                    id="password" 
-                    name="password"
-                    placeholder="Create a strong password"
-                    required>
-            </div>
-            <div style="margin-top: 8px; font-size: 12px; color: #64748b;">
-                <i class="fas fa-info-circle me-1"></i>
-                Minimum 8 characters recommended
-            </div>
-            @error('password')
-                <div class="invalid-feedback d-block">{{ $message }}</div>
-            @enderror
-        </div>
-
-        <!-- Confirm Password -->
-        <div class="form-group">
-            <label for="password_confirmation">Confirm Password</label>
-            <div class="input-group-custom">
-                <i class="fas fa-lock-open"></i>
-                <input 
-                    type="password"
-                    class="form-control" 
-                    id="password_confirmation" 
-                    name="password_confirmation" 
-                    placeholder="Re-enter your password"
-                    required>
+            <div>
+                <label for="email" class="label">Email</label>
+                <input type="email" id="email" name="email" value="{{ old('email') }}"
+                       class="field" placeholder="sara@example.com" autocomplete="email" required>
+                @error('email')
+                    <p class="field-error">{{ $message }}</p>
+                @enderror
             </div>
         </div>
 
-        <button type="submit" class="btn-auth">
-            <i class="fas fa-rocket me-2"></i>Create My Account
-        </button>
+        <div class="grid gap-5 sm:grid-cols-2">
+            <div>
+                <label for="password" class="label">Password</label>
+                <input type="password" id="password" name="password"
+                       class="field" autocomplete="new-password" required>
+                <p class="mt-1 text-xs text-ink-soft">8 characters or more.</p>
+                @error('password')
+                    <p class="field-error">{{ $message }}</p>
+                @enderror
+            </div>
 
-        <div class="auth-link">
-            Already have an account? 
-            <a href="{{ route('login') }}">
-                <i class="fas fa-sign-in-alt me-1"></i>Sign In
-            </a>
+            <div>
+                <label for="password_confirmation" class="label">Same again</label>
+                <input type="password" id="password_confirmation" name="password_confirmation"
+                       class="field" autocomplete="new-password" required>
+            </div>
         </div>
+
+        <button type="submit" class="btn-pine w-full">Create my book</button>
+
+        <p class="text-center text-sm text-ink-soft">
+            Already have one? <a href="{{ route('login') }}" class="link text-ink">Log in</a>
+        </p>
     </form>
 @endsection

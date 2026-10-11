@@ -1,3 +1,108 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+@layer base {
+    body {
+        @apply bg-paper text-ink font-sans antialiased;
+    }
+
+    h1, h2, h3 {
+        @apply font-serif;
+    }
+
+    a {
+        @apply transition-colors;
+    }
+
+    [x-cloak] {
+        display: none !important;
+    }
+}
+
+@layer components {
+    .eyebrow {
+        @apply font-mono text-[11px] uppercase tracking-widest text-ink-soft;
+    }
+
+    .num {
+        font-variant-numeric: tabular-nums;
+    }
+
+    .link {
+        @apply underline decoration-rule underline-offset-4 hover:decoration-ink;
+    }
+
+    /* Buttons */
+    .btn {
+        @apply inline-flex items-center justify-center gap-2 rounded-full px-5 py-2.5 text-sm font-bold transition-colors
+               focus:outline-none focus-visible:ring-2 focus-visible:ring-pine focus-visible:ring-offset-2 focus-visible:ring-offset-paper
+               disabled:opacity-60 disabled:cursor-wait;
+    }
+    .btn-pine { @apply btn bg-pine text-paper hover:bg-pine-dark; }
+    .btn-ink { @apply btn bg-ink text-paper hover:bg-black; }
+    .btn-ghost { @apply btn border-[1.5px] border-ink text-ink hover:bg-ink hover:text-paper; }
+    .btn-rust { @apply btn border-[1.5px] border-rust text-rust hover:bg-rust hover:text-paper; }
+
+    /* Form fields: underline only, like writing on a line */
+    .label {
+        @apply block text-[13px] text-ink-soft mb-1;
+    }
+    .field {
+        @apply block w-full border-0 border-b-[1.5px] border-ink bg-transparent px-0 py-1.5 text-[15px] text-ink
+               placeholder:text-rule focus:border-pine focus:ring-0;
+    }
+    .field-boxed {
+        @apply block w-full rounded-lg border-[1.5px] border-rule bg-paper-2 px-3 py-2 text-[15px] text-ink
+               placeholder:text-rule focus:border-pine focus:ring-0;
+    }
+    .field-error {
+        @apply mt-1 text-[13px] text-rust;
+    }
+
+    /* Ledger tables */
+    .ledger {
+        @apply w-full text-sm;
+    }
+    .ledger th {
+        @apply eyebrow border-b border-ink pb-1.5 text-left font-normal;
+    }
+    .ledger td {
+        @apply border-b border-dotted border-rule py-2.5 align-middle;
+    }
+    .ledger tr.total td {
+        @apply border-b-0 border-t-[3px] border-double border-ink font-bold;
+    }
+    .ledger .amount {
+        @apply font-mono num text-right whitespace-nowrap;
+    }
+
+    /* Bits */
+    .pill {
+        @apply inline-block rounded-full bg-rule-light px-2 py-px text-[11px] leading-5 text-ink;
+    }
+    .pill-over {
+        @apply pill border border-rust bg-rust-bg text-rust-dark;
+    }
+    .money-card {
+        @apply rounded-2xl bg-pine px-5 py-4 text-paper;
+    }
+    .money-card.is-over {
+        @apply bg-rust;
+    }
+    .note {
+        @apply rounded-xl border-[1.5px] border-rust bg-rust-bg px-4 py-3 text-sm text-rust-dark;
+    }
+    .note-pine {
+        @apply rounded-xl border-[1.5px] border-pine bg-[#e3ece6] px-4 py-3 text-sm text-pine-dark;
+    }
+    .bar {
+        @apply h-2 w-full bg-rule-light;
+    }
+    .bar > span {
+        @apply block h-full bg-ink;
+    }
+    .sheet {
+        @apply border-[1.5px] border-ink bg-paper-2 rounded-2xl;
+    }
+}

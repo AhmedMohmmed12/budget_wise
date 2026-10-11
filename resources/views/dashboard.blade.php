@@ -1,335 +1,182 @@
 @extends('layouts.app')
 
-@section('title', 'Dashboard')
+@section('title', 'This month')
 
 @section('content')
-<div class="container">
-    <!-- Budget Summary Section -->
-    <div class="mb-4">
-        <div class="d-flex justify-content-between align-items-center mb-3">
-            <div>
-                <h2 class="fw-bold mb-0">Budget Summary</h2>
-                <p class="text-muted mb-0">{{ \Carbon\Carbon::now()->format('F Y') }}</p>
+@php
+    $s = $budgetSummary;
+    $now = now();
+    $weekly = ($s['period'] ?? 'monthly') === 'weekly';
+    $periodName = $weekly ? 'this week' : $now->format('F');
+    $dayOf = $weekly ? 'day ' . $now->dayOfWeekIso . ' of 7' : 'day ' . $now->day . ' of ' . $now->daysInMonth;
+    $daysLeft = max(1, (int) floor($s['daysRemaining']));
+    $hasBudget = $s['totalBudget'] > 0;
+    $over = $hasBudget && $s['remaining'] < 0;
+    $firstName = \Illuminate\Support\Str::of(Auth::user()->name)->before(' ');
+
+    $rows = collect($s['categorySummaries'])->filter(fn ($c) => $c['spent'] > 0 || $c['budget'] > 0);
+    $mostExceeded = $rows->filter(fn ($c) => $c['budget'] > 0 && $c['spent'] > $c['budget'])
+        ->sortByDesc('percentage')->first();
+@endphp
+
+<div class="grid gap-8 md:grid-cols-2">
+    {{-- Left: what's left --}}
+    <section>
+        <p class="eyebrow">{{ $now->format('F Y') }} · {{ $dayOf }}</p>
+
+        @if (! $hasBudget)
+            <div class="money-card mt-3">
+                <p class="text-sm opacity-85">Hey {{ $firstName }},</p>
+                <p class="font-serif text-3xl leading-tight">no budget yet.</p>
+                <p class="mt-1 text-sm opacity-85">
+                    Set how much you want to spend {{ $weekly ? 'each week' : 'each month' }} and this page will keep count for you.
+                </p>
+                <a href="{{ route('budgets.index') }}" class="btn mt-4 bg-paper text-pine hover:bg-white">Set a budget</a>
             </div>
-            <a href="{{ route('budgets.index') }}" class="btn btn-primary">
-                <i class="fas fa-cog me-2"></i>Set Monthly Budget
-            </a>
+        @elseif ($over)
+            <div class="money-card is-over mt-3">
+                <p class="text-sm opacity-85">Hey {{ $firstName }}, you're</p>
+                <p class="num font-serif text-[40px] leading-tight tracking-tight">${{ number_format(abs($s['remaining']), 2) }} over</p>
+                <p class="text-sm opacity-85">for {{ $periodName }}. It happens. Try to keep the next {{ $daysLeft }} {{ \Illuminate\Support\Str::plural('day', $daysLeft) }} quiet.</p>
+            </div>
+        @else
+            <div class="money-card mt-3">
+                <p class="text-sm opacity-85">Hey {{ $firstName }}, you've got</p>
+                <p class="num font-serif text-[40px] leading-tight tracking-tight">${{ number_format($s['remaining'], 2) }} left</p>
+                <p class="text-sm opacity-85">
+                    That's about ${{ number_format($s['dailyBudget'], 0) }} a day for the next {{ $daysLeft }} {{ \Illuminate\Support\Str::plural('day', $daysLeft) }}.
+                    @if ($s['spentPercentage'] < 75) You're doing fine. @elseif ($s['spentPercentage'] < 90) Getting close, go easy. @else Nearly at the limit. @endif
+                </p>
+            </div>
+        @endif
+
+        @if ($hasBudget)
+            <div class="bar mt-4"><span style="width: {{ min($s['spentPercentage'], 100) }}%" class="{{ $over ? '!bg-rust' : '' }}"></span></div>
+            <div class="num mt-1.5 flex justify-between font-mono text-[11px] text-ink-soft">
+                <span>spent {{ number_format($s['totalSpent'], 2) }}</span>
+                <span>of {{ number_format($s['totalBudget'], 2) }}</span>
+            </div>
+        @endif
+
+        <p class="mt-4 text-sm text-ink-soft">
+            Spent today: <span class="num font-mono text-ink">${{ number_format($s['todaySpending'], 2) }}</span>
+        </p>
+
+        @if ($mostExceeded && ! $over)
+            <div class="note mt-4">
+                {{ $mostExceeded['category'] }} went
+                <b>${{ number_format($mostExceeded['spent'] - $mostExceeded['budget'], 2) }} over</b>
+                {{ $periodName === 'this week' ? 'this week' : 'this month' }}.
+                <a href="{{ route('expense-tips') }}" class="underline underline-offset-2">A few ideas to pull it back</a>.
+            </div>
+        @endif
+    </section>
+
+    {{-- Right: category ledger --}}
+    <section>
+        <div class="flex items-baseline justify-between">
+            <h2 class="text-lg">Where it went</h2>
+            <a href="{{ route('budgets.index') }}" class="link text-sm text-ink-soft">Change limits</a>
         </div>
 
-        <div class="row g-3">
-            <!-- Total Budget Card -->
-            <div class="col-md-4">
-                <div class="card h-100">
-                    <div class="card-body">
-                        <div class="d-flex align-items-center mb-3">
-                            <div class="rounded-circle bg-primary bg-opacity-10 p-3 me-3">
-                                <i class="fas fa-dollar-sign fa-lg text-primary"></i>
-                            </div>
-                            <div>
-                                <h6 class="text-muted mb-0">Total Budget</h6>
-                                <h3 class="fw-bold mb-0">${{ number_format($budgetSummary['totalBudget'], 2) }}</h3>
-                            </div>
-                        </div>
-                        <div class="mb-2">
-                            <small class="text-muted">Spent</small>
-                            <div class="d-flex justify-content-between align-items-center">
-                                <span class="fw-bold">${{ number_format($budgetSummary['totalSpent'], 2) }}</span>
-                                <span class="badge {{ $budgetSummary['spentPercentage'] > 100 ? 'bg-danger' : 'bg-primary' }}">
-                                    {{ number_format($budgetSummary['spentPercentage'], 1) }}%
-                                </span>
-                            </div>
-                        </div>
-                        <div class="progress">
-                            <div class="progress-bar {{ $budgetSummary['spentPercentage'] > 100 ? 'bg-danger' : 'bg-primary' }}" 
-                                 style="width: {{ min($budgetSummary['spentPercentage'], 100) }}%"></div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Remaining Card -->
-            <div class="col-md-4">
-                <div class="card h-100">
-                    <div class="card-body">
-                        <div class="d-flex align-items-center mb-3">
-                            <div class="rounded-circle bg-success bg-opacity-10 p-3 me-3">
-                                <i class="fas fa-check fa-lg text-success"></i>
-                            </div>
-                            <div>
-                                <h6 class="text-muted mb-0">Remaining</h6>
-                                <h3 class="fw-bold mb-0 {{ $budgetSummary['remaining'] < 0 ? 'text-danger' : 'text-success' }}">
-                                    ${{ number_format(abs($budgetSummary['remaining']), 2) }}
-                                    @if($budgetSummary['remaining'] < 0)<small class="text-danger">(Over)</small>@endif
-                                </h3>
-                            </div>
-                        </div>
-                        <div class="mb-2">
-                            <small class="text-muted">Available</small>
-                            <div class="d-flex justify-content-between align-items-center">
-                                <span class="fw-bold">{{ number_format(max(0, 100 - $budgetSummary['spentPercentage']), 1) }}% left</span>
-                            </div>
-                        </div>
-                        <div class="progress">
-                            <div class="progress-bar bg-success" style="width: {{ max(0, 100 - $budgetSummary['spentPercentage']) }}%"></div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Daily Budget Card -->
-            <div class="col-md-4">
-                <div class="card h-100">
-                    <div class="card-body">
-                        <div class="d-flex align-items-center mb-3">
-                            <div class="rounded-circle bg-secondary bg-opacity-10 p-3 me-3">
-                                <i class="fas fa-calendar-day fa-lg text-secondary"></i>
-                            </div>
-                            <div>
-                                <h6 class="text-muted mb-0">Daily Budget</h6>
-                                <h3 class="fw-bold mb-0">${{ number_format($budgetSummary['dailyBudget'], 2) }}</h3>
-                            </div>
-                        </div>
-                        <p class="small text-muted mb-2">
-                            Based on your remaining budget and {{ $budgetSummary['daysRemaining'] }} days left this month.
-                        </p>
-                        <div class="small">
-                            <i class="fas fa-info-circle text-info me-1"></i>
-                            Today's spending: <span class="fw-bold">${{ number_format($budgetSummary['todaySpending'], 2) }}</span>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Budget Alerts -->
-    @php
-        $overBudgetCategories = collect($budgetSummary['categorySummaries'])->filter(fn($cat) => $cat['percentage'] > 100);
-        $mostExceeded = $overBudgetCategories->sortByDesc('percentage')->first();
-    @endphp
-
-    @if($budgetSummary['spentPercentage'] > 100)
-        <div class="alert alert-danger d-flex align-items-center mb-4" role="alert">
-            <i class="fas fa-exclamation-triangle fa-2x me-3"></i>
-            <div class="flex-grow-1">
-                <h5 class="alert-heading mb-1">⚠️ Total Budget Exceeded!</h5>
-                <p class="mb-2">You've exceeded your total monthly budget by {{ number_format($budgetSummary['spentPercentage'] - 100, 1) }}%. Consider reducing expenses for the rest of the month to avoid financial strain.</p>
-                <a href="{{ route('expense-tips') }}" class="btn btn-sm btn-outline-danger">View Money-Saving Tips</a>
-            </div>
-        </div>
-    @elseif($mostExceeded)
-        <div class="alert alert-warning d-flex align-items-center mb-4" role="alert">
-            <i class="fas fa-exclamation-circle fa-2x me-3"></i>
-            <div class="flex-grow-1">
-                <h5 class="alert-heading mb-1">{{ $mostExceeded['category'] }} Budget Alert</h5>
-                <p class="mb-2">You've spent {{ number_format($mostExceeded['percentage'], 1) }}% of your {{ $mostExceeded['category'] }} budget ({{ number_format($mostExceeded['percentage'] - 100, 1) }}% over budget). Check your spending in this category.</p>
-                <a href="{{ route('expense-tips') }}" class="btn btn-sm btn-outline-warning">View Saving Tips</a>
-            </div>
-        </div>
-    @endif
-
-    <div class="row g-4">
-        <!-- Spending by Category -->
-        <div class="col-lg-8">
-            <div class="card">
-                <div class="card-header bg-white">
-                    <h5 class="mb-0"><i class="fas fa-chart-pie me-2"></i>Spending by Category</h5>
-                </div>
-                <div class="card-body">
-                    @if(count($chartData) > 0)
-                        <div style="max-width: 400px; margin: 0 auto;">
-                            <canvas id="categoryChart"></canvas>
-                        </div>
-                        
-                        <div class="mt-4">
-                            @foreach($budgetSummary['categorySummaries'] as $summary)
-                                @if($summary['spent'] > 0 || $summary['budget'] > 0)
-                                <div class="mb-3">
-                                    <div class="d-flex justify-content-between align-items-center mb-1">
-                                        <div>
-                                            <span class="badge badge-category" style="background-color: {{ ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#6b7280'][array_search($summary['category'], array_column($budgetSummary['categorySummaries'], 'category'))] }}">
-                                                {{ $summary['category'] }}
-                                            </span>
-                                        </div>
-                                        <div class="text-end">
-                                            <small class="text-muted">${{ number_format($summary['spent'], 2) }} / ${{ number_format($summary['budget'], 2) }}</small>
-                                        </div>
-                                    </div>
-                                    <div class="progress">
-                                        <div class="progress-bar {{ $summary['percentage'] > 100 ? 'bg-danger' : 'bg-primary' }}" 
-                                             style="width: {{ min($summary['percentage'], 100) }}%">
-                                            {{ number_format($summary['percentage'], 0) }}%
-                                        </div>
-                                    </div>
-                                </div>
+        @if ($rows->isEmpty())
+            <p class="mt-3 border-t border-ink pt-3 text-sm text-ink-soft">
+                Nothing written down yet. Add your first expense and it'll show up here.
+            </p>
+        @else
+            <table class="ledger mt-2">
+                <thead>
+                    <tr><th>Category</th><th class="!text-right">Spent / limit</th></tr>
+                </thead>
+                <tbody>
+                    @foreach ($rows as $row)
+                        @php $rowOver = $row['budget'] > 0 && $row['spent'] > $row['budget']; @endphp
+                        <tr class="{{ $rowOver ? 'text-rust' : '' }}">
+                            <td>
+                                {{ $row['category'] }}
+                                @if ($rowOver)
+                                    <span class="pill-over ml-1">over</span>
+                                @elseif ($row['budget'] > 0 && $row['spent'] >= $row['budget'])
+                                    <span class="pill ml-1">at limit</span>
                                 @endif
-                            @endforeach
-                        </div>
-                    @else
-                        <div class="text-center py-5 text-muted">
-                            <i class="fas fa-chart-pie fa-3x mb-3 opacity-50"></i>
-                            <p>No expenses recorded yet. Add your first expense to see the chart!</p>
-                        </div>
-                    @endif
-                </div>
-            </div>
-        </div>
+                            </td>
+                            <td class="amount">
+                                {{ number_format($row['spent'], 2) }}
+                                <span class="text-ink-soft">/ {{ $row['budget'] > 0 ? number_format($row['budget'], 0) : '—' }}</span>
+                            </td>
+                        </tr>
+                    @endforeach
+                    <tr class="total">
+                        <td>Total</td>
+                        <td class="amount">{{ number_format($s['totalSpent'], 2) }}</td>
+                    </tr>
+                </tbody>
+            </table>
+        @endif
+    </section>
+</div>
 
-        <!-- Add Expense Form -->
-        <div class="col-lg-4">
-            @include('components.expense-form')
-        </div>
+{{-- Recent entries --}}
+<section class="mt-10" x-data="{ adding: {{ $recentExpenses->isEmpty() ? 'true' : 'false' }} }">
+    <div class="flex items-center justify-between border-b border-ink pb-2">
+        <h2 class="text-lg">Recent entries</h2>
+        <button type="button" class="btn-ink !py-1.5 !px-4" @click="adding = !adding" :aria-expanded="adding">
+            <span x-text="adding ? 'Close' : '+ Add expense'">+ Add expense</span>
+        </button>
     </div>
 
-    <!-- Recent Transactions -->
-    <div class="mt-4">
-        <div class="card">
-            <div class="card-header bg-white d-flex justify-content-between align-items-center">
-                <h5 class="mb-0"><i class="fas fa-history me-2"></i>Recent Transactions</h5>
-            </div>
-            <div class="card-body p-0">
-                @if($recentExpenses->count() > 0)
-                    <div class="table-responsive">
-                        <table class="table table-hover mb-0">
-                            <thead class="table-light">
-                                <tr>
-                                    <th>Date</th>
-                                    <th>Category</th>
-                                    <th>Note</th>
-                                    <th class="text-end">Amount</th>
-                                    <th class="text-end">Action</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                @foreach($recentExpenses as $expense)
-                                <tr>
-                                    <td>{{ $expense->date->format('M d, Y') }}</td>
-                                    <td>
-                                        <span class="badge bg-secondary">{{ $expense->category }}</span>
-                                    </td>
-                                    <td>{{ $expense->note ?? '-' }}</td>
-                                    <td class="text-end fw-bold">${{ number_format($expense->amount, 2) }}</td>
-                                    <td class="text-end">
-                                        <button class="btn btn-sm btn-outline-danger delete-expense" data-id="{{ $expense->id }}">
-                                            <i class="fas fa-trash"></i>
-                                        </button>
-                                    </td>
-                                </tr>
-                                @endforeach
-                            </tbody>
-                        </table>
-                    </div>
-                @else
-                    <div class="text-center py-5 text-muted">
-                        <i class="fas fa-receipt fa-3x mb-3 opacity-50"></i>
-                        <p>No expenses recorded yet</p>
-                    </div>
-                @endif
-                </div>
-            </div>
-        </div>
+    <div x-cloak x-show="adding" class="border-b border-dotted border-rule py-5">
+        @include('components.expense-form')
     </div>
+
+    @if ($recentExpenses->isEmpty())
+        <p class="py-4 text-sm text-ink-soft">No entries yet. The first one's always the hardest.</p>
+    @else
+        <table class="ledger">
+            <tbody>
+                @foreach ($recentExpenses as $expense)
+                    <tr>
+                        <td class="w-24 whitespace-nowrap font-mono text-ink-soft">{{ $expense->date->format($expense->date->isCurrentYear() ? 'M d' : "M d 'y") }}</td>
+                        <td>
+                            {{ $expense->note ?: $expense->category }}
+                            @if ($expense->note)
+                                <span class="text-ink-soft">· {{ $expense->category }}</span>
+                            @endif
+                        </td>
+                        <td class="amount">{{ number_format($expense->amount, 2) }}</td>
+                        <td class="w-8 text-right">
+                            <button type="button" class="delete-expense px-1 text-lg leading-none text-ink-soft hover:text-rust"
+                                    data-id="{{ $expense->id }}" aria-label="Delete this entry" title="Delete">&times;</button>
+                        </td>
+                    </tr>
+                @endforeach
+            </tbody>
+        </table>
+    @endif
+</section>
 @endsection
 
 @push('scripts')
 <script>
-// Lazy load Chart.js only when needed
-@if(count($chartData) > 0)
-// Load Chart.js dynamically
-function loadChartJS(callback) {
-    if (typeof Chart !== 'undefined') {
-        callback();
-        return;
-    }
-    const script = document.createElement('script');
-    script.src = 'https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js';
-    script.onload = callback;
-    document.head.appendChild(script);
-}
+document.addEventListener('click', async (event) => {
+    const button = event.target.closest('.delete-expense');
+    if (!button || !confirm('Delete this entry?')) return;
 
-// Initialize chart when DOM is ready and Chart.js is loaded
-document.addEventListener('DOMContentLoaded', function() {
-    loadChartJS(function() {
-        const ctx = document.getElementById('categoryChart').getContext('2d');
-        const chartData = @json($chartData);
-        const colors = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#6b7280'];
-
-        new Chart(ctx, {
-    type: 'doughnut',
-    data: {
-        labels: chartData.map(item => item.category),
-        datasets: [{
-            data: chartData.map(item => item.amount),
-            backgroundColor: colors,
-            borderWidth: 2,
-            borderColor: '#fff'
-        }]
-    },
-    options: {
-        responsive: true,
-        maintainAspectRatio: true,
-        plugins: {
-            legend: {
-                position: 'bottom',
-                labels: {
-                    padding: 15,
-                    font: {
-                        size: 12
-                    }
-                }
+    button.disabled = true;
+    try {
+        const response = await fetch(`/expenses/${button.dataset.id}`, {
+            method: 'DELETE',
+            headers: {
+                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
+                'Accept': 'application/json',
             },
-            tooltip: {
-                callbacks: {
-                    label: function(context) {
-                        return context.label + ': $' + context.parsed.toFixed(2);
-                    }
-                }
-            }
-        }
-    }
-});
-    });
-});
-@endif
-
-// Delete expense - Wait for jQuery to load
-document.addEventListener('DOMContentLoaded', function() {
-    // Ensure jQuery is loaded
-    function waitForJQuery(callback) {
-        if (typeof $ !== 'undefined') {
-            callback();
-        } else {
-            setTimeout(() => waitForJQuery(callback), 100);
-        }
-    }
-
-    waitForJQuery(function() {
-        $(document).on('click', '.delete-expense', function() {
-    if (!confirm('Are you sure you want to delete this expense?')) return;
-    
-    const expenseId = $(this).data('id');
-    const row = $(this).closest('tr');
-    
-    $.ajax({
-        url: `/expenses/${expenseId}`,
-        type: 'DELETE',
-        headers: {
-            'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
-        },
-        success: function(response) {
-            if (response.success) {
-                row.fadeOut(300, function() {
-                    $(this).remove();
-                });
-                location.reload(); // Reload to update budget summary
-            }
-        },
-        error: function() {
-            alert('Failed to delete expense. Please try again.');
-        }
-    });
         });
-    });
+        if (!response.ok) throw new Error();
+        location.reload();
+    } catch {
+        button.disabled = false;
+        alert("Couldn't delete that entry. Try again.");
+    }
 });
 </script>
 @endpush

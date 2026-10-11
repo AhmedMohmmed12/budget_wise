@@ -1,122 +1,87 @@
-<div class="card">
-    <div class="card-header bg-white">
-        <h5 class="mb-0"><i class="fas fa-plus-circle me-2"></i>Add Expense</h5>
+<form id="expenseForm" class="grid gap-5 sm:grid-cols-[8rem_minmax(0,1fr)_10rem]" novalidate>
+    @csrf
+
+    <div>
+        <label for="amount" class="label">Amount ($)</label>
+        <input type="number" id="amount" name="amount" step="0.01" min="0.01"
+               class="field num font-mono" placeholder="12.50" required>
+        <p class="field-error hidden" data-error="amount"></p>
     </div>
-    <div class="card-body">
-        <form id="expenseForm">
-            @csrf
-            <div class="mb-3">
-                <label for="amount" class="form-label">Amount</label>
-                <div class="input-group">
-                    <span class="input-group-text">$</span>
-                    <input type="number" class="form-control" id="amount" name="amount" step="0.01" min="0.01" required>
-                </div>
-                <div class="invalid-feedback"></div>
-            </div>
 
-            <div class="mb-3">
-                <label for="category" class="form-label">Category</label>
-                <select class="form-select" id="category" name="category" required>
-                    <option value="">Select category</option>
-                    <option value="Restaurants">Restaurants</option>
-                    <option value="Housing">Housing</option>
-                    <option value="Transportation">Transportation</option>
-                    <option value="Shopping">Shopping</option>
-                    <option value="Entertainment">Entertainment</option>
-                    <option value="Others">Others</option>
-                </select>
-                <div class="invalid-feedback"></div>
-            </div>
-
-            <div class="mb-3">
-                <label for="date" class="form-label">Date</label>
-                <input type="date" class="form-control" id="date" name="date" value="{{ date('Y-m-d') }}" required>
-                <div class="invalid-feedback"></div>
-            </div>
-
-            <div class="mb-3">
-                <label for="note" class="form-label">Note (Optional)</label>
-                <textarea class="form-control" id="note" name="note" rows="2" placeholder="Add a note..."></textarea>
-                <div class="invalid-feedback"></div>
-            </div>
-
-            <div class="d-grid">
-                <button type="submit" class="btn btn-primary" id="submitBtn">
-                    <i class="fas fa-save me-2"></i>Add Expense
-                </button>
-            </div>
-        </form>
-
-        <div class="alert alert-success mt-3 d-none" id="successMessage">
-            <i class="fas fa-check-circle me-2"></i>Expense added successfully!
-        </div>
-
-        <div class="alert alert-danger mt-3 d-none" id="errorMessage">
-            <i class="fas fa-exclamation-circle me-2"></i><span id="errorText"></span>
-        </div>
+    <div>
+        <label for="note" class="label">What was it?</label>
+        <input type="text" id="note" name="note" maxlength="500"
+               class="field" placeholder="Lunch with Omar">
+        <p class="field-error hidden" data-error="note"></p>
     </div>
-</div>
+
+    <div>
+        <label for="date" class="label">Date</label>
+        <input type="date" id="date" name="date" value="{{ date('Y-m-d') }}" class="field font-mono" required>
+        <p class="field-error hidden" data-error="date"></p>
+    </div>
+
+    <div class="sm:col-span-2">
+        <label for="category" class="label">Category</label>
+        <select id="category" name="category" class="field" required>
+            <option value="">Pick one</option>
+            @foreach (['Restaurants', 'Housing', 'Transportation', 'Shopping', 'Entertainment', 'Others'] as $category)
+                <option value="{{ $category }}">{{ $category }}</option>
+            @endforeach
+        </select>
+        <p class="field-error hidden" data-error="category"></p>
+    </div>
+
+    <div class="flex items-end">
+        <button type="submit" id="submitBtn" class="btn-pine w-full">Write it down</button>
+    </div>
+
+    <p id="formMessage" class="hidden text-sm sm:col-span-3"></p>
+</form>
 
 @push('scripts')
 <script>
-// Wait for jQuery to be available
-function waitForJQuery(callback) {
-    if (typeof $ !== 'undefined') {
-        callback();
-    } else {
-        setTimeout(() => waitForJQuery(callback), 100);
-    }
-}
+document.getElementById('expenseForm').addEventListener('submit', async (event) => {
+    event.preventDefault();
+    const form = event.target;
+    const button = document.getElementById('submitBtn');
+    const message = document.getElementById('formMessage');
 
-document.addEventListener('DOMContentLoaded', function() {
-    waitForJQuery(function() {
-        $('#expenseForm').on('submit', function(e) {
-        e.preventDefault();
-        
-        // Clear previous errors
-        $('.is-invalid').removeClass('is-invalid');
-        $('.invalid-feedback').text('');
-        $('#successMessage, #errorMessage').addClass('d-none');
-        
-        const submitBtn = $('#submitBtn');
-        submitBtn.prop('disabled', true).html('<i class="fas fa-spinner fa-spin me-2"></i>Adding...');
-        
-        $.ajax({
-            url: '{{ route("expenses.store") }}',
-            type: 'POST',
-            data: $(this).serialize(),
-            success: function(response) {
-                if (response.success) {
-                    $('#successMessage').removeClass('d-none');
-                    $('#expenseForm')[0].reset();
-                    $('#date').val('{{ date("Y-m-d") }}');
-                    
-                    // Reload page after 1 second to refresh budget summary
-                    setTimeout(function() {
-                        location.reload();
-                    }, 1000);
-                }
-            },
-            error: function(xhr) {
-                if (xhr.status === 422) {
-                    const errors = xhr.responseJSON.errors;
-                    Object.keys(errors).forEach(function(key) {
-                        const input = $(`#${key}`);
-                        input.addClass('is-invalid');
-                        input.siblings('.invalid-feedback').text(errors[key][0]);
-                    });
-                } else {
-                    $('#errorText').text('Failed to add expense. Please try again.');
-                    $('#errorMessage').removeClass('d-none');
-                }
-            },
-            complete: function() {
-                submitBtn.prop('disabled', false).html('<i class="fas fa-save me-2"></i>Add Expense');
-            }
+    form.querySelectorAll('[data-error]').forEach((el) => { el.textContent = ''; el.classList.add('hidden'); });
+    message.className = 'hidden text-sm sm:col-span-3';
+    button.disabled = true;
+    button.textContent = 'Saving…';
+
+    try {
+        const response = await fetch('{{ route('expenses.store') }}', {
+            method: 'POST',
+            headers: { 'Accept': 'application/json' },
+            body: new FormData(form),
         });
-        });
-    });
+        const data = await response.json().catch(() => ({}));
+
+        if (response.ok && data.success) {
+            message.textContent = 'Added.';
+            message.className = 'text-sm text-pine sm:col-span-3';
+            setTimeout(() => location.reload(), 600);
+            return;
+        }
+
+        if (response.status === 422 && data.errors) {
+            Object.entries(data.errors).forEach(([field, errors]) => {
+                const el = form.querySelector(`[data-error="${field}"]`);
+                if (el) { el.textContent = errors[0]; el.classList.remove('hidden'); }
+            });
+        } else {
+            throw new Error();
+        }
+    } catch {
+        message.textContent = "Couldn't save that. Check your connection and try again.";
+        message.className = 'text-sm text-rust sm:col-span-3';
+    }
+
+    button.disabled = false;
+    button.textContent = 'Write it down';
 });
 </script>
 @endpush
-

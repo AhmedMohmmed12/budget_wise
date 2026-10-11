@@ -1,157 +1,119 @@
 @extends('layouts.app')
 
-@section('title', 'Profile Settings')
+@section('title', 'Profile')
 
 @section('content')
-<div class="container">
-    <div class="row justify-content-center">
-        <div class="col-lg-8">
-            <h2 class="fw-bold mb-4">Profile Settings</h2>
+<div class="mx-auto max-w-2xl">
+    <p class="eyebrow">Profile</p>
+    <h1 class="mt-1 text-3xl">{{ $user->name }}</h1>
+    <p class="mt-1 text-sm text-ink-soft">Keeping this book since {{ $user->created_at?->format('F Y') }}.</p>
 
-            <!-- Tabs -->
-            <ul class="nav nav-tabs mb-4" id="profileTabs" role="tablist">
-                <li class="nav-item" role="presentation">
-                    <button class="nav-link active" id="profile-tab" data-bs-toggle="tab" data-bs-target="#profile" type="button" role="tab">
-                        <i class="fas fa-user me-2"></i>Profile Information
-                    </button>
-                </li>
-                <li class="nav-item" role="presentation">
-                    <button class="nav-link" id="security-tab" data-bs-toggle="tab" data-bs-target="#security" type="button" role="tab">
-                        <i class="fas fa-shield-alt me-2"></i>Security
-                    </button>
-                </li>
-            </ul>
+    @if (session('status') === 'profile-updated')
+        <div class="note-pine mt-6">Saved.</div>
+    @endif
 
-            <!-- Tab Content -->
-            <div class="tab-content" id="profileTabContent">
-                <!-- Profile Information Tab -->
-                <div class="tab-pane fade show active" id="profile" role="tabpanel">
-                    <div class="card">
-                        <div class="card-header bg-white">
-                            <h5 class="mb-0">Profile Information</h5>
-                            <small class="text-muted">Update your account's profile information</small>
-                        </div>
-                        <div class="card-body">
-                            <form method="POST" action="{{ route('profile.update') }}">
-                                @csrf
-                                @method('PATCH')
+    {{-- Details --}}
+    <section class="mt-10">
+        <h2 class="border-b border-ink pb-1.5 text-lg">Your details</h2>
+        <form method="POST" action="{{ route('profile.update') }}" class="mt-5 space-y-5">
+            @csrf
+            @method('PATCH')
 
-                                <div class="mb-3">
-                                    <label for="name" class="form-label">Name</label>
-                                    <input type="text" 
-                                           class="form-control @error('name') is-invalid @enderror" 
-                                           id="name" 
-                                           name="name" 
-                                           value="{{ old('name', $user->name) }}" 
-                                           required>
-                                    @error('name')
-                                        <div class="invalid-feedback">{{ $message }}</div>
-                                    @enderror
-                                </div>
+            <div>
+                <label for="name" class="label">Name</label>
+                <input type="text" id="name" name="name" value="{{ old('name', $user->name) }}" class="field" required>
+                @error('name')
+                    <p class="field-error">{{ $message }}</p>
+                @enderror
+            </div>
 
-                                <div class="mb-3">
-                                    <label for="username" class="form-label">Username</label>
-                                    <input type="text" 
-                                           class="form-control @error('username') is-invalid @enderror" 
-                                           id="username" 
-                                           name="username" 
-                                           value="{{ old('username', $user->username) }}" 
-                                           required>
-                                    @error('username')
-                                        <div class="invalid-feedback">{{ $message }}</div>
-                                    @enderror
-                                </div>
-
-                                <div class="mb-3">
-                                    <label for="email" class="form-label">Email</label>
-                                    <input type="email" 
-                                           class="form-control @error('email') is-invalid @enderror" 
-                                           id="email" 
-                                           name="email" 
-                                           value="{{ old('email', $user->email) }}" 
-                                           required>
-                                    @error('email')
-                                        <div class="invalid-feedback">{{ $message }}</div>
-                                    @enderror
-                                </div>
-
-                                <div class="d-grid">
-                                    <button type="submit" class="btn btn-primary">
-                                        <i class="fas fa-save me-2"></i>Save Changes
-                                    </button>
-                                </div>
-                            </form>
-                        </div>
-                    </div>
+            <div class="grid gap-5 sm:grid-cols-2">
+                <div>
+                    <label for="username" class="label">Username</label>
+                    <input type="text" id="username" name="username" value="{{ old('username', $user->username) }}" class="field" required>
+                    @error('username')
+                        <p class="field-error">{{ $message }}</p>
+                    @enderror
                 </div>
 
-                <!-- Security Tab -->
-                <div class="tab-pane fade" id="security" role="tabpanel">
-                    <div class="card">
-                        <div class="card-header bg-white">
-                            <h5 class="mb-0">Update Password</h5>
-                            <small class="text-muted">Ensure your account is using a secure password</small>
-                        </div>
-                        <div class="card-body">
-                            <form method="POST" action="{{ route('profile.password.update') }}">
-                                @csrf
-                                @method('PATCH')
-
-                                <div class="mb-3">
-                                    <label for="current_password" class="form-label">Current Password</label>
-                                    <input type="password" 
-                                           class="form-control @error('current_password') is-invalid @enderror" 
-                                           id="current_password" 
-                                           name="current_password" 
-                                           required>
-                                    @error('current_password')
-                                        <div class="invalid-feedback">{{ $message }}</div>
-                                    @enderror
-                                </div>
-
-                                <hr class="my-4">
-
-                                <div class="mb-3">
-                                    <label for="password" class="form-label">New Password</label>
-                                    <input type="password" 
-                                           class="form-control @error('password') is-invalid @enderror" 
-                                           id="password" 
-                                           name="password" 
-                                           required>
-                                    @error('password')
-                                        <div class="invalid-feedback">{{ $message }}</div>
-                                    @enderror
-                                    <small class="text-muted">Minimum 8 characters</small>
-                                </div>
-
-                                <div class="mb-3">
-                                    <label for="password_confirmation" class="form-label">Confirm Password</label>
-                                    <input type="password" 
-                                           class="form-control" 
-                                           id="password_confirmation" 
-                                           name="password_confirmation" 
-                                           required>
-                                </div>
-
-                                <div class="alert alert-warning d-flex align-items-start">
-                                    <i class="fas fa-exclamation-triangle me-3 mt-1"></i>
-                                    <div class="small">
-                                        Make sure your password is at least 8 characters and contains a mix of letters, numbers, and symbols for better security.
-                                    </div>
-                                </div>
-
-                                <div class="d-grid">
-                                    <button type="submit" class="btn btn-primary">
-                                        <i class="fas fa-key me-2"></i>Update Password
-                                    </button>
-                                </div>
-                            </form>
-                        </div>
-                    </div>
+                <div>
+                    <label for="email" class="label">Email</label>
+                    <input type="email" id="email" name="email" value="{{ old('email', $user->email) }}" class="field" required>
+                    @error('email')
+                        <p class="field-error">{{ $message }}</p>
+                    @enderror
                 </div>
             </div>
-        </div>
-    </div>
+
+            <div class="flex justify-end">
+                <button type="submit" class="btn-pine">Save details</button>
+            </div>
+        </form>
+    </section>
+
+    {{-- Password --}}
+    <section class="mt-12">
+        <h2 class="border-b border-ink pb-1.5 text-lg">Change password</h2>
+        <form method="POST" action="{{ route('profile.password.update') }}" class="mt-5 space-y-5">
+            @csrf
+            @method('PATCH')
+
+            <div>
+                <label for="current_password" class="label">Current password</label>
+                <input type="password" id="current_password" name="current_password" class="field" autocomplete="current-password" required>
+                @error('current_password')
+                    <p class="field-error">{{ $message }}</p>
+                @enderror
+            </div>
+
+            <div class="grid gap-5 sm:grid-cols-2">
+                <div>
+                    <label for="password" class="label">New password</label>
+                    <input type="password" id="password" name="password" class="field" autocomplete="new-password" required>
+                    <p class="mt-1 text-xs text-ink-soft">8 characters or more. A short sentence works well.</p>
+                    @error('password')
+                        <p class="field-error">{{ $message }}</p>
+                    @enderror
+                </div>
+
+                <div>
+                    <label for="password_confirmation" class="label">Same again</label>
+                    <input type="password" id="password_confirmation" name="password_confirmation" class="field" autocomplete="new-password" required>
+                </div>
+            </div>
+
+            <div class="flex justify-end">
+                <button type="submit" class="btn-pine">Update password</button>
+            </div>
+        </form>
+    </section>
+
+    {{-- Delete --}}
+    <section class="mt-12" x-data="{ open: {{ $errors->userDeletion->isNotEmpty() ? 'true' : 'false' }} }">
+        <h2 class="border-b border-rust pb-1.5 text-lg text-rust">Delete account</h2>
+        <p class="mt-3 text-sm text-ink-soft">
+            This removes your account and every entry in it. There's no undo.
+        </p>
+
+        <button type="button" class="btn-rust mt-4" x-show="!open" @click="open = true">Delete my account…</button>
+
+        <form method="POST" action="{{ route('profile.destroy') }}" class="note mt-4 space-y-4" x-cloak x-show="open">
+            @csrf
+            @method('DELETE')
+
+            <p>Type your password to confirm.</p>
+            <div>
+                <label for="delete_password" class="label !text-rust-dark">Password</label>
+                <input type="password" id="delete_password" name="password" class="field !border-rust" autocomplete="current-password">
+                @foreach ($errors->userDeletion->get('password') as $message)
+                    <p class="field-error">{{ $message }}</p>
+                @endforeach
+            </div>
+            <div class="flex justify-end gap-3">
+                <button type="button" class="btn-ghost" @click="open = false">Keep it</button>
+                <button type="submit" class="btn !bg-rust text-paper hover:!bg-rust-dark">Delete for good</button>
+            </div>
+        </form>
+    </section>
 </div>
 @endsection
-

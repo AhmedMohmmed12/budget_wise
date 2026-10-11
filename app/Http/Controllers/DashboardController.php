@@ -15,8 +15,7 @@ class DashboardController extends Controller
         // Get budget summary
         $budgetService = new BudgetSummaryService($user->id);
         $budgetSummary = $budgetService->getSummary();
-        $chartData = $budgetService->getCategoryChartData();
-        
+
         // Get recent expenses (last 10) - Optimized with select
         $recentExpenses = Expense::select('id', 'user_id', 'amount', 'category', 'date', 'note', 'created_at')
             ->where('user_id', $user->id)
@@ -25,6 +24,6 @@ class DashboardController extends Controller
             ->limit(10)
             ->get();
         
-        return view('dashboard', compact('budgetSummary', 'chartData', 'recentExpenses'));
+        return view('dashboard', compact('budgetSummary', 'recentExpenses'));
     }
 }
