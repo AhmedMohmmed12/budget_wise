@@ -2,15 +2,22 @@
 
 use App\Http\Controllers\BudgetController;
 use App\Http\Controllers\DashboardController;
+use App\Http\Controllers\EntryController;
 use App\Http\Controllers\ExpenseController;
 use App\Http\Controllers\PageController;
 use App\Http\Controllers\ProfileController;
+use App\Http\Controllers\TrashController;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/', fn () => redirect()->route('dashboard'));
 
 Route::middleware(['auth'])->group(function () {
     Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
+
+    // Entries (history, export, trash)
+    Route::get('/entries', [EntryController::class, 'index'])->name('entries.index');
+    Route::get('/entries/export', [EntryController::class, 'export'])->name('entries.export');
+    Route::get('/entries/trash', [TrashController::class, 'index'])->name('trash.index');
 
     // Expenses
     Route::get('/expenses/{expense}/edit', [ExpenseController::class, 'edit'])->name('expenses.edit');
@@ -19,6 +26,10 @@ Route::middleware(['auth'])->group(function () {
         Route::post('/expenses', [ExpenseController::class, 'store'])->name('expenses.store');
         Route::patch('/expenses/{expense}', [ExpenseController::class, 'update'])->name('expenses.update');
         Route::delete('/expenses/{expense}', [ExpenseController::class, 'destroy'])->name('expenses.destroy');
+        Route::post('/entries/trash/expenses/{expense}/restore', [TrashController::class, 'restoreExpense'])
+            ->withTrashed()->name('trash.expenses.restore');
+        Route::delete('/entries/trash/expenses/{expense}', [TrashController::class, 'destroyExpense'])
+            ->withTrashed()->name('trash.expenses.destroy');
     });
 
     // Budget

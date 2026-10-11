@@ -29,9 +29,9 @@ class ExpensePolicy
         return $this->ownedAndOpen($user, $expense);
     }
 
-    public function forceDelete(User $user, Expense $expense): bool
+    public function forceDelete(User $user, Expense $expense): Response
     {
-        return $expense->user_id === $user->id;
+        return $expense->user_id === $user->id ? Response::allow() : Response::denyAsNotFound();
     }
 
     private function ownedAndOpen(User $user, Expense $expense): Response

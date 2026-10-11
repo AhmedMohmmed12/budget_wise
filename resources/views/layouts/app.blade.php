@@ -9,6 +9,7 @@
     @php
         $links = [
             ['route' => 'dashboard', 'label' => Auth::user()?->budget_period === 'weekly' ? 'This week' : 'This month'],
+            ['route' => 'entries.index', 'label' => 'Entries', 'active' => 'entries.*'],
             ['route' => 'budgets.index', 'label' => 'Budget'],
             ['route' => 'expense-tips', 'label' => 'Tips'],
         ];
@@ -23,7 +24,7 @@
             <nav class="hidden items-center gap-6 text-sm md:flex">
                 @foreach ($links as $link)
                     <a href="{{ route($link['route']) }}"
-                       class="{{ request()->routeIs($link['route']) ? 'font-bold text-ink' : 'text-ink-soft hover:text-ink' }}">
+                       class="{{ request()->routeIs($link['active'] ?? $link['route']) ? 'font-bold text-ink' : 'text-ink-soft hover:text-ink' }}">
                         {{ $link['label'] }}
                     </a>
                 @endforeach
@@ -75,10 +76,10 @@
 
     {{-- Mobile bottom bar --}}
     <nav class="fixed inset-x-0 bottom-0 z-30 border-t-2 border-ink bg-paper md:hidden">
-        <div class="grid grid-cols-4 text-center text-[13px]">
+        <div class="grid grid-cols-5 text-center text-[13px]">
             @foreach (array_merge($links, [['route' => 'profile.index', 'label' => 'Profile']]) as $link)
                 <a href="{{ route($link['route']) }}"
-                   class="py-3.5 {{ request()->routeIs($link['route']) ? 'font-bold text-ink underline decoration-pine decoration-2 underline-offset-4' : 'text-ink-soft' }}">
+                   class="py-3.5 {{ request()->routeIs($link['active'] ?? $link['route']) ? 'font-bold text-ink underline decoration-pine decoration-2 underline-offset-4' : 'text-ink-soft' }}">
                     {{ $link['label'] }}
                 </a>
             @endforeach
