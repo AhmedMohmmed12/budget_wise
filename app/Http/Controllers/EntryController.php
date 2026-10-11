@@ -5,7 +5,6 @@ namespace App\Http\Controllers;
 use App\Support\EntryWindow;
 use Carbon\CarbonImmutable;
 use Illuminate\Database\Eloquent\Builder;
-use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
 use Symfony\Component\HttpFoundation\StreamedResponse;
@@ -20,12 +19,16 @@ class EntryController extends Controller
         $user = $request->user();
         $filters = $this->filters($request);
 
-        $query = $this->filtered($user->expenses(), $filters);
+        $query = $this->filtered($request, $filters);
         $total = (clone $query)->sum('amount');
+
+        if ($filters['type'] === 'expenses') {
+            $query->with('category');
+        }
 
         return view('entries.index', [
             'filters' => $filters,
-            'expenses' => $query->with('category')->orderByDesc('date')->orderByDesc('id')->paginate(25)->withQueryString(),
+            'entries' => $query->orderByDesc('date')->orderByDesc('id')->paginate(25)->withQueryString(),
             'total' => (float) $total,
             'categories' => $user->categories()->ordered()->get(),
             'thisMonth' => EntryWindow::today($user)->format('Y-m'),
@@ -36,21 +39,26 @@ class EntryController extends Controller
     {
         $user = $request->user();
         $filters = $this->filters($request);
-        $rows = $this->filtered($user->expenses(), $filters)->with('category')->orderBy('date')->orderBy('id');
+        $isIncome = $filters['type'] === 'income';
 
-        $name = 'budgetwise-expenses-'.($filters['month'] === 'all' ? 'all' : $filters['month']).'.csv';
+        $rows = $this->filtered($request, $filters)->orderBy('date')->orderBy('id');
+        if (! $isIncome) {
+            $rows->with('category');
+        }
 
-        return response()->streamDownload(function () use ($rows, $user) {
+        $name = 'budgetwise-'.$filters['type'].'-'.$filters['month'].'.csv';
+
+        return response()->streamDownload(function () use ($rows, $user, $isIncome) {
             $out = fopen('php://output', 'w');
-            fputcsv($out, ['Date', 'Category', 'Note', 'Amount', 'Currency']);
+            fputcsv($out, ['Date', $isIncome ? 'Source' : 'Category', 'Note', 'Amount', 'Currency']);
 
-            $rows->chunk(500, function ($chunk) use ($out, $user) {
-                foreach ($chunk as $expense) {
+            $rows->chunk(500, function ($chunk) use ($out, $user, $isIncome) {
+                foreach ($chunk as $entry) {
                     fputcsv($out, [
-                        $expense->date->toDateString(),
-                        $expense->category?->name,
-                        $this->csvSafe($expense->note),
-                        number_format((float) $expense->amount, 2, '.', ''),
+                        $entry->date->toDateString(),
+                        $this->csvSafe($isIncome ? $entry->source : $entry->category?->name),
+                        $this->csvSafe($entry->note),
+                        number_format((float) $entry->amount, 2, '.', ''),
                         $user->currency,
                     ]);
                 }
@@ -61,7 +69,7 @@ class EntryController extends Controller
     }
 
     /**
-     * @return array{month: string, category: ?int, q: ?string, min: ?float, max: ?float}
+     * @return array{type: string, month: string, category: ?int, q: ?string, min: ?float, max: ?float}
      */
     private function filters(Request $request): array
     {
@@ -76,6 +84,7 @@ class EntryController extends Controller
         $number = fn ($key) => is_numeric($request->query($key)) ? (float) $request->query($key) : null;
 
         return [
+            'type' => $request->query('type') === 'income' ? 'income' : 'expenses',
             'month' => $month,
             'category' => is_numeric($request->query('category')) ? (int) $request->query('category') : null,
             'q' => trim((string) $request->query('q')) ?: null,
@@ -84,24 +93,31 @@ class EntryController extends Controller
         ];
     }
 
-    private function filtered(HasMany $relation, array $filters): Builder
+    private function filtered(Request $request, array $filters): Builder
     {
-        $query = $relation->getQuery();
+        $isIncome = $filters['type'] === 'income';
+        $query = ($isIncome ? $request->user()->incomes() : $request->user()->expenses())->getQuery();
 
         if ($filters['month'] !== 'all') {
             $start = CarbonImmutable::parse($filters['month'].'-01');
             $query->whereBetween('date', [$start->toDateString(), $start->endOfMonth()->toDateString()]);
         }
 
+        if ($filters['q']) {
+            $like = '%'.addcslashes($filters['q'], '%_\\').'%';
+            $query->where(fn ($q) => $isIncome
+                ? $q->where('source', 'like', $like)->orWhere('note', 'like', $like)
+                : $q->where('note', 'like', $like));
+        }
+
         return $query
-            ->when($filters['category'], fn ($q, $id) => $q->where('category_id', $id))
-            ->when($filters['q'], fn ($q, $text) => $q->where('note', 'like', '%'.addcslashes($text, '%_\\').'%'))
+            ->when(! $isIncome && $filters['category'], fn ($q) => $q->where('category_id', $filters['category']))
             ->when($filters['min'] !== null, fn ($q) => $q->where('amount', '>=', $filters['min']))
             ->when($filters['max'] !== null, fn ($q) => $q->where('amount', '<=', $filters['max']));
     }
 
     /**
-     * Stop spreadsheet apps from treating notes as formulas.
+     * Stop spreadsheet apps from treating cells as formulas.
      */
     private function csvSafe(?string $value): ?string
     {

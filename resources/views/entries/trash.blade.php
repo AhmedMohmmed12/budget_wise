@@ -11,7 +11,7 @@
         Entries from a closed month can't be brought back.
     </p>
 
-    @if ($expenses->isEmpty())
+    @if ($entries->isEmpty())
         <p class="mt-8 border-t border-ink pt-4 text-ink-soft">Nothing here. Good.</p>
     @else
         <table class="ledger mt-6">
@@ -19,25 +19,33 @@
                 <tr><th>Date</th><th>Entry</th><th class="!text-right">Amount</th><th class="!text-right">Deleted</th><th></th></tr>
             </thead>
             <tbody>
-                @foreach ($expenses as $expense)
+                @foreach ($entries as $entry)
+                    @php
+                        $isIncome = $entry instanceof \App\Models\Income;
+                        $routes = $isIncome ? ['trash.incomes.restore', 'trash.incomes.destroy'] : ['trash.expenses.restore', 'trash.expenses.destroy'];
+                    @endphp
                     <tr>
-                        <td class="whitespace-nowrap font-mono text-ink-soft">{{ $expense->date->format('M d, Y') }}</td>
+                        <td class="whitespace-nowrap font-mono text-ink-soft">{{ $entry->date->format('M d, Y') }}</td>
                         <td>
-                            {{ $expense->note ?: $expense->category?->name }}
-                            @if ($expense->note) <span class="text-ink-soft">· {{ $expense->category?->name }}</span> @endif
+                            @if ($isIncome)
+                                {{ $entry->source }} <span class="pill ml-1">income</span>
+                            @else
+                                {{ $entry->note ?: $entry->category?->name }}
+                                @if ($entry->note) <span class="text-ink-soft">· {{ $entry->category?->name }}</span> @endif
+                            @endif
                         </td>
-                        <td class="amount">@money($expense->amount)</td>
-                        <td class="whitespace-nowrap text-right text-xs text-ink-soft">{{ $expense->deleted_at->diffForHumans() }}</td>
+                        <td class="amount {{ $isIncome ? 'text-pine' : '' }}">{{ $isIncome ? '+' : '' }}@money($entry->amount)</td>
+                        <td class="whitespace-nowrap text-right text-xs text-ink-soft">{{ $entry->deleted_at->diffForHumans() }}</td>
                         <td class="whitespace-nowrap text-right text-sm">
-                            @if (\App\Support\EntryWindow::isOpen($expense->date, Auth::user()))
-                                <form method="POST" action="{{ route('trash.expenses.restore', $expense) }}" class="inline">
+                            @if (\App\Support\EntryWindow::isOpen($entry->date, Auth::user()))
+                                <form method="POST" action="{{ route($routes[0], $entry) }}" class="inline">
                                     @csrf
                                     <button type="submit" class="link text-pine">restore</button>
                                 </form>
                             @else
                                 <span class="pill">closed</span>
                             @endif
-                            <form method="POST" action="{{ route('trash.expenses.destroy', $expense) }}" class="ml-2 inline"
+                            <form method="POST" action="{{ route($routes[1], $entry) }}" class="ml-2 inline"
                                   onsubmit="return confirm('Delete this entry for good?')">
                                 @csrf
                                 @method('DELETE')

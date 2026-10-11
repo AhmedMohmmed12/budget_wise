@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Controllers\Concerns\SafeReturn;
 use App\Http\Requests\ExpenseRequest;
 use App\Models\Expense;
 use App\Support\EntryWindow;
@@ -12,6 +13,8 @@ use Illuminate\View\View;
 
 class ExpenseController extends Controller
 {
+    use SafeReturn;
+
     public function store(ExpenseRequest $request): JsonResponse|RedirectResponse
     {
         $expense = $request->user()->expenses()->create($request->validated());
@@ -59,13 +62,5 @@ class ExpenseController extends Controller
         }
 
         return redirect($this->safeReturn($request->input('return')))->with('success', 'Moved to Recently deleted.');
-    }
-
-    /**
-     * Only follow "return" links that point back into this app.
-     */
-    private function safeReturn(mixed $url): string
-    {
-        return is_string($url) && str_starts_with($url, url('/').'/') ? $url : route('dashboard');
     }
 }

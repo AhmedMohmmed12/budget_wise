@@ -14,6 +14,7 @@ return Application::configure(basePath: dirname(__DIR__))
         // Add HTML minification middleware to web group for production performance
         $middleware->web(append: [
             \App\Http\Middleware\MinifyHtml::class,
+            \App\Http\Middleware\CatchUpRecurring::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {

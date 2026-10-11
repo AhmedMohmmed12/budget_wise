@@ -20,6 +20,7 @@ class Expense extends Model
 
     protected $fillable = [
         'user_id',
+        'recurring_entry_id',
         'category_id',
         'amount',
         'date',
@@ -39,6 +40,11 @@ class Expense extends Model
     public function category(): BelongsTo
     {
         return $this->belongsTo(Category::class);
+    }
+
+    public function recurringEntry(): BelongsTo
+    {
+        return $this->belongsTo(RecurringEntry::class);
     }
 
     /**

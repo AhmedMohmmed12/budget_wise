@@ -33,6 +33,7 @@ class MinifyHtml
     protected function isHtmlResponse(Response $response): bool
     {
         $contentType = $response->headers->get('Content-Type');
+
         return $contentType && str_contains($contentType, 'text/html');
     }
 
@@ -46,8 +47,9 @@ class MinifyHtml
         $html = preg_replace_callback(
             '#<(pre|textarea|script)[^>]*?>.*?</\1>#is',
             function ($matches) use (&$preserve) {
-                $placeholder = '___PRESERVE_' . count($preserve) . '___';
+                $placeholder = '___PRESERVE_'.count($preserve).'___';
                 $preserve[$placeholder] = $matches[0];
+
                 return $placeholder;
             },
             $html

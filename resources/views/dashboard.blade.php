@@ -99,6 +99,43 @@
                 @endif
             </div>
         @endif
+
+        @if ($s->monthIncome > 0)
+            <div class="mt-6">
+                <p class="eyebrow">{{ $s->month->start->format('F') }} money</p>
+                <dl class="mt-2 grid grid-cols-3 border-y border-ink text-sm">
+                    <div class="py-2 pr-2">
+                        <dt class="text-xs text-ink-soft">In</dt>
+                        <dd class="num font-mono text-pine">+@money($s->monthIncome)</dd>
+                    </div>
+                    <div class="border-x border-dotted border-rule px-3 py-2">
+                        <dt class="text-xs text-ink-soft">Out</dt>
+                        <dd class="num font-mono">@money($s->monthSpent)</dd>
+                    </div>
+                    <div class="py-2 pl-3">
+                        <dt class="text-xs text-ink-soft">Kept</dt>
+                        <dd class="num font-mono font-bold {{ $s->monthLeft() < 0 ? 'text-rust' : '' }}">@money($s->monthLeft())</dd>
+                    </div>
+                </dl>
+            </div>
+        @endif
+
+        @if ($s->upcoming()->isNotEmpty())
+            <div class="mt-6">
+                <div class="flex items-baseline justify-between">
+                    <p class="eyebrow">Coming up this month</p>
+                    <a href="{{ route('recurring.index') }}" class="link text-xs text-ink-soft">manage</a>
+                </div>
+                <ul class="mt-1 text-sm">
+                    @foreach ($s->upcoming() as $item)
+                        <li class="flex justify-between border-b border-dotted border-rule py-1.5">
+                            <span><span class="mr-3 font-mono text-ink-soft">{{ $item['date']->format('M d') }}</span>{{ $item['entry']->description }}</span>
+                            <span class="num font-mono {{ $item['entry']->isExpense() ? '' : 'text-pine' }}">{{ $item['entry']->isExpense() ? '' : '+' }}@money($item['entry']->amount)</span>
+                        </li>
+                    @endforeach
+                </ul>
+            </div>
+        @endif
     </section>
 
     {{-- Right: category ledger --}}
@@ -154,14 +191,14 @@
         <h2 class="text-lg">{{ $s->isCurrent ? 'Recent entries' : 'Entries' }}</h2>
         @if ($s->isCurrent)
             <button type="button" class="btn-ink !px-4 !py-1.5" @click="adding = !adding" :aria-expanded="adding">
-                <span x-text="adding ? 'Close' : '+ Add expense'">+ Add expense</span>
+                <span x-text="adding ? 'Close' : '+ Add'">+ Add</span>
             </button>
         @endif
     </div>
 
     @if ($s->isCurrent)
         <div x-cloak x-show="adding" class="border-b border-dotted border-rule py-5">
-            @include('components.expense-form')
+            @include('components.quick-add')
         </div>
     @endif
 

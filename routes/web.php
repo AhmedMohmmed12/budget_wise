@@ -5,8 +5,10 @@ use App\Http\Controllers\CategoryController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\EntryController;
 use App\Http\Controllers\ExpenseController;
+use App\Http\Controllers\IncomeController;
 use App\Http\Controllers\PageController;
 use App\Http\Controllers\ProfileController;
+use App\Http\Controllers\RecurringEntryController;
 use App\Http\Controllers\TrashController;
 use Illuminate\Support\Facades\Route;
 
@@ -31,6 +33,28 @@ Route::middleware(['auth'])->group(function () {
             ->withTrashed()->name('trash.expenses.restore');
         Route::delete('/entries/trash/expenses/{expense}', [TrashController::class, 'destroyExpense'])
             ->withTrashed()->name('trash.expenses.destroy');
+    });
+
+    // Income
+    Route::get('/income/{income}/edit', [IncomeController::class, 'edit'])->name('incomes.edit');
+    Route::middleware('throttle:60,1')->group(function () {
+        Route::post('/income', [IncomeController::class, 'store'])->name('incomes.store');
+        Route::patch('/income/{income}', [IncomeController::class, 'update'])->name('incomes.update');
+        Route::delete('/income/{income}', [IncomeController::class, 'destroy'])->name('incomes.destroy');
+        Route::post('/entries/trash/income/{income}/restore', [TrashController::class, 'restoreIncome'])
+            ->withTrashed()->name('trash.incomes.restore');
+        Route::delete('/entries/trash/income/{income}', [TrashController::class, 'destroyIncome'])
+            ->withTrashed()->name('trash.incomes.destroy');
+    });
+
+    // Recurring
+    Route::get('/recurring', [RecurringEntryController::class, 'index'])->name('recurring.index');
+    Route::get('/recurring/{recurring}/edit', [RecurringEntryController::class, 'edit'])->name('recurring.edit');
+    Route::middleware('throttle:60,1')->group(function () {
+        Route::post('/recurring', [RecurringEntryController::class, 'store'])->name('recurring.store');
+        Route::patch('/recurring/{recurring}', [RecurringEntryController::class, 'update'])->name('recurring.update');
+        Route::post('/recurring/{recurring}/pause', [RecurringEntryController::class, 'pause'])->name('recurring.pause');
+        Route::delete('/recurring/{recurring}', [RecurringEntryController::class, 'destroy'])->name('recurring.destroy');
     });
 
     // Categories

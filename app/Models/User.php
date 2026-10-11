@@ -87,4 +87,14 @@ class User extends Authenticatable
     {
         return $this->hasMany(Category::class);
     }
+
+    public function incomes(): HasMany
+    {
+        return $this->hasMany(Income::class);
+    }
+
+    public function recurringEntries(): HasMany
+    {
+        return $this->hasMany(RecurringEntry::class);
+    }
 }

@@ -44,10 +44,10 @@ class LoginRequest extends FormRequest
         // Try to authenticate with username or email
         $credentials = $this->only('email', 'password');
         $loginField = filter_var($this->input('email'), FILTER_VALIDATE_EMAIL) ? 'email' : 'username';
-        
+
         $attemptCredentials = [
             $loginField => $this->input('email'),
-            'password' => $this->input('password')
+            'password' => $this->input('password'),
         ];
 
         if (! Auth::attempt($attemptCredentials, $this->boolean('remember'))) {

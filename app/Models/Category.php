@@ -52,13 +52,20 @@ class Category extends Model
         return $this->hasMany(Budget::class);
     }
 
+    public function recurringEntries(): HasMany
+    {
+        return $this->hasMany(RecurringEntry::class);
+    }
+
     /**
      * Used categories can be archived but not deleted (deleted entries count
      * too, since they can still be restored).
      */
     public function isInUse(): bool
     {
-        return $this->expenses()->withTrashed()->exists() || $this->budgets()->exists();
+        return $this->expenses()->withTrashed()->exists()
+            || $this->budgets()->exists()
+            || $this->recurringEntries()->exists();
     }
 
     public function isArchived(): bool

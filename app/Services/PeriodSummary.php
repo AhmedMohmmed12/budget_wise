@@ -5,6 +5,8 @@ namespace App\Services;
 use App\Models\Budget;
 use App\Models\Category;
 use App\Models\Expense;
+use App\Models\Income;
+use App\Models\RecurringEntry;
 use App\Models\User;
 use App\Support\BudgetPeriod;
 use App\Support\EntryWindow;
@@ -31,8 +33,15 @@ class PeriodSummary
 
     public float $todaySpent = 0;
 
-    /** Spending in the calendar month the period sits in (useful for weekly budgets). */
+    /** The calendar month the period sits in; income is counted per month. */
+    public BudgetPeriod $month;
+
+    /** Spending in that calendar month (differs from totalSpent for weekly budgets). */
     public float $monthSpent;
+
+    public float $monthIncome;
+
+    private ?Collection $upcoming = null;
 
     /**
      * @var Collection<int, array{category: Category, budget: float, spent: float, percentage: float|null, over: bool}>
@@ -75,10 +84,39 @@ class PeriodSummary
             $this->todaySpent = (float) $this->expenses()->whereDate('date', $today->toDateString())->sum('amount');
         }
 
-        $month = BudgetPeriod::make(BudgetPeriod::MONTHLY, $this->isCurrent ? $today : $period->start);
+        $this->month = BudgetPeriod::make(BudgetPeriod::MONTHLY, $this->isCurrent ? $today : $period->start);
         $this->monthSpent = $period->isMonthly()
             ? $this->totalSpent
-            : (float) $this->expenses()->whereBetween('date', $month->range())->sum('amount');
+            : (float) $this->expenses()->whereBetween('date', $this->month->range())->sum('amount');
+        $this->monthIncome = (float) Income::where('user_id', $user->id)->whereBetween('date', $this->month->range())->sum('amount');
+    }
+
+    /**
+     * What's left of the month's income after spending.
+     */
+    public function monthLeft(): float
+    {
+        return $this->monthIncome - $this->monthSpent;
+    }
+
+    /**
+     * Recurring entries still to be written down this month.
+     *
+     * @return Collection<int, array{entry: RecurringEntry, date: \Carbon\CarbonImmutable}>
+     */
+    public function upcoming(): Collection
+    {
+        if (! $this->isCurrent) {
+            return collect();
+        }
+
+        $month = $this->month->start;
+
+        return $this->upcoming ??= RecurringEntry::where('user_id', $this->user->id)->whereNull('paused_at')->with('category')->get()
+            ->filter(fn (RecurringEntry $e) => $e->runsIn($month) && ! $e->postedIn($month))
+            ->map(fn (RecurringEntry $e) => ['entry' => $e, 'date' => $e->dueDateIn($month)])
+            ->sortBy('date')
+            ->values();
     }
 
     public function hasBudget(): bool
