@@ -103,20 +103,20 @@
         @if ($s->monthIncome > 0 || $s->monthSetAside != 0)
             <div class="mt-6">
                 <p class="eyebrow">{{ $s->month->start->format('F') }} money</p>
-                <dl class="mt-2 grid grid-cols-4 border-y border-ink text-sm">
-                    <div class="py-2 pr-2">
+                <dl class="mt-2 grid grid-cols-2 border-y border-ink text-sm lg:grid-cols-4">
+                    <div class="border-b border-r border-dotted border-rule py-2 pr-2 lg:border-b-0">
                         <dt class="text-xs text-ink-soft">In</dt>
                         <dd class="num font-mono text-pine">+@money($s->monthIncome)</dd>
                     </div>
-                    <div class="border-l border-dotted border-rule px-2 py-2">
+                    <div class="border-b border-dotted border-rule px-2 py-2 lg:border-b-0 lg:border-r">
                         <dt class="text-xs text-ink-soft">Out</dt>
                         <dd class="num font-mono">@money($s->monthSpent)</dd>
                     </div>
-                    <div class="border-x border-dotted border-rule px-2 py-2">
+                    <div class="border-r border-dotted border-rule py-2 pr-2 lg:px-2">
                         <dt class="text-xs text-ink-soft">Set aside</dt>
                         <dd class="num font-mono">@money($s->monthSetAside)</dd>
                     </div>
-                    <div class="py-2 pl-2">
+                    <div class="px-2 py-2">
                         <dt class="text-xs text-ink-soft">Kept</dt>
                         <dd class="num font-mono font-bold {{ $s->monthLeft() < 0 ? 'text-rust' : '' }}">@money($s->monthLeft())</dd>
                     </div>

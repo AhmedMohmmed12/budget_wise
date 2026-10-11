@@ -2,77 +2,118 @@
 
 namespace Database\Seeders;
 
-use App\Models\User;
 use App\Models\Budget;
-use App\Models\Expense;
+use App\Models\Category;
+use App\Models\User;
+use App\Services\RecurringPoster;
+use Carbon\CarbonImmutable;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\Hash;
-use Carbon\Carbon;
 
+/**
+ * A demo account with three months of believable history.
+ * Log in as "demo" / "password".
+ */
 class BudgetWiseSeeder extends Seeder
 {
-    /**
-     * Run the database seeds.
-     */
     public function run(): void
     {
-        // Create a demo user
+        if (User::where('username', 'demo')->exists()) {
+            $this->command?->warn('The demo user already exists; skipping.');
+
+            return;
+        }
+
         $user = User::create([
             'name' => 'Demo User',
             'username' => 'demo',
             'email' => 'demo@budgetwise.com',
             'password' => Hash::make('password'),
+            'email_alerts' => false,
         ]);
 
-        // Create budgets for the demo user
-        $budgets = [
-            ['category' => 'Total', 'amount' => 2500, 'period' => 'monthly'],
-            ['category' => 'Restaurants', 'amount' => 300, 'period' => 'monthly'],
-            ['category' => 'Housing', 'amount' => 700, 'period' => 'monthly'],
-            ['category' => 'Transportation', 'amount' => 250, 'period' => 'monthly'],
-            ['category' => 'Shopping', 'amount' => 200, 'period' => 'monthly'],
-            ['category' => 'Entertainment', 'amount' => 150, 'period' => 'monthly'],
-            ['category' => 'Others', 'amount' => 200, 'period' => 'monthly'],
-        ];
+        // DatabaseSeeder runs without model events, so the created() hook that
+        // normally adds these doesn't fire.
+        Category::createDefaultsFor($user);
+        $category = $user->categories()->pluck('id', 'name');
+        $thisMonth = CarbonImmutable::today()->startOfMonth();
 
-        foreach ($budgets as $budget) {
-            Budget::create([
-                'user_id' => $user->id,
-                'category' => $budget['category'],
-                'amount' => $budget['amount'],
-                'period' => $budget['period'],
-                'start_date' => Carbon::now()->startOfMonth(),
-                'active' => true,
-            ]);
+        // Budgets for the last three months (the current one rolls forward from these).
+        $limits = ['Restaurants' => 300, 'Housing' => 900, 'Transportation' => 250, 'Shopping' => 200, 'Entertainment' => 150, 'Others' => 150];
+        foreach ([2, 1, 0] as $monthsAgo) {
+            $start = $thisMonth->subMonthsNoOverflow($monthsAgo)->toDateString();
+            Budget::create(['user_id' => $user->id, 'period' => 'monthly', 'period_start' => $start, 'amount' => 2200]);
+            foreach ($limits as $name => $amount) {
+                Budget::create(['user_id' => $user->id, 'category_id' => $category[$name], 'period' => 'monthly', 'period_start' => $start, 'amount' => $amount]);
+            }
         }
 
-        // Create sample expenses for the demo user
-        $expenses = [
-            ['amount' => 15.75, 'category' => 'Restaurants', 'date' => Carbon::today(), 'note' => 'Lunch at Chipotle'],
-            ['amount' => 22.50, 'category' => 'Transportation', 'date' => Carbon::yesterday(), 'note' => 'Uber ride'],
-            ['amount' => 28.00, 'category' => 'Entertainment', 'date' => Carbon::today()->subDays(2), 'note' => 'Movie tickets'],
-            ['amount' => 45.99, 'category' => 'Shopping', 'date' => Carbon::today()->subDays(3), 'note' => 'H&M purchase'],
-            ['amount' => 65.30, 'category' => 'Restaurants', 'date' => Carbon::today()->subDays(5), 'note' => 'Dinner with friends'],
-            ['amount' => 355.09, 'category' => 'Housing', 'date' => Carbon::today()->subDays(7), 'note' => 'Partial rent payment'],
-            ['amount' => 213.05, 'category' => 'Transportation', 'date' => Carbon::today()->subDays(10), 'note' => 'Car maintenance'],
-            ['amount' => 142.04, 'category' => 'Shopping', 'date' => Carbon::today()->subDays(12), 'note' => 'Online shopping'],
-            ['amount' => 142.04, 'category' => 'Entertainment', 'date' => Carbon::today()->subDays(15), 'note' => 'Concert tickets'],
-            ['amount' => 142.03, 'category' => 'Others', 'date' => Carbon::today()->subDays(18), 'note' => 'Miscellaneous'],
-        ];
+        // Recurring: rent, a subscription and the salary.
+        $starts = $thisMonth->subMonthsNoOverflow(2)->toDateString();
+        $user->recurringEntries()->createMany([
+            ['kind' => 'expense', 'category_id' => $category['Housing'], 'amount' => 850, 'description' => 'Rent', 'day_of_month' => 1, 'starts_on' => $starts],
+            ['kind' => 'expense', 'category_id' => $category['Entertainment'], 'amount' => 12.99, 'description' => 'Music subscription', 'day_of_month' => 5, 'starts_on' => $starts],
+            ['kind' => 'income', 'amount' => 3200, 'description' => 'Salary', 'day_of_month' => 1, 'starts_on' => $starts],
+        ]);
 
-        foreach ($expenses as $expense) {
-            Expense::create([
-                'user_id' => $user->id,
-                'amount' => $expense['amount'],
-                'category' => $expense['category'],
-                'date' => $expense['date'],
-                'note' => $expense['note'],
-            ]);
+        // Earlier months, written down the way the recurring entries would have been.
+        foreach ([2, 1] as $monthsAgo) {
+            $month = $thisMonth->subMonthsNoOverflow($monthsAgo);
+            foreach ($user->recurringEntries as $entry) {
+                $date = $entry->dueDateIn($month);
+                $entry->isExpense()
+                    ? $user->expenses()->create(['recurring_entry_id' => $entry->id, 'category_id' => $entry->category_id, 'amount' => $entry->amount, 'date' => $date, 'note' => $entry->description])
+                    : $user->incomes()->create(['recurring_entry_id' => $entry->id, 'amount' => $entry->amount, 'source' => $entry->description, 'date' => $date]);
+            }
+            $user->recurringEntries()->update(['last_posted_month' => $month->toDateString()]);
         }
 
-        $this->command->info('Demo user created successfully!');
-        $this->command->info('Email/Username: demo@budgetwise.com or demo');
-        $this->command->info('Password: password');
+        // Everyday spending: [day of month, category, amount, note].
+        $everyday = [
+            [2, 'Restaurants', 14.50, 'Lunch near work'], [3, 'Transportation', 40.00, 'Fuel'],
+            [4, 'Shopping', 36.20, 'Groceries'], [6, 'Restaurants', 4.75, 'Coffee'],
+            [8, 'Entertainment', 24.00, 'Cinema'], [9, 'Shopping', 58.90, 'Groceries'],
+            [11, 'Restaurants', 62.30, 'Dinner with friends'], [12, 'Transportation', 18.00, 'Taxi home'],
+            [14, 'Others', 25.00, 'Haircut'], [16, 'Shopping', 41.10, 'Groceries'],
+            [18, 'Restaurants', 9.80, 'Shawarma'], [20, 'Transportation', 40.00, 'Fuel'],
+            [22, 'Shopping', 79.99, 'New shoes'], [23, 'Others', 15.00, 'Pharmacy'],
+            [25, 'Restaurants', 31.40, 'Takeaway'], [27, 'Shopping', 47.60, 'Groceries'],
+        ];
+
+        $today = CarbonImmutable::today();
+        foreach ([2, 1, 0] as $monthsAgo) {
+            $month = $thisMonth->subMonthsNoOverflow($monthsAgo);
+            foreach ($everyday as $i => [$day, $name, $amount, $note]) {
+                $date = $month->day(min($day, $month->daysInMonth));
+                if ($date->gt($today)) {
+                    continue;
+                }
+                // A little variation so the months don't look identical.
+                $user->expenses()->create([
+                    'category_id' => $category[$name],
+                    'amount' => round($amount * (1 + (($i + $monthsAgo * 3) % 5 - 2) / 10), 2),
+                    'date' => $date,
+                    'note' => $note,
+                ]);
+            }
+        }
+
+        // This month's recurring entries, exactly as a visit would write them.
+        RecurringPoster::catchUp($user);
+
+        // A goal with a few months of saving.
+        $goal = $user->savingsGoals()->create([
+            'name' => 'New laptop',
+            'target_amount' => 1200,
+            'target_date' => $thisMonth->addMonthsNoOverflow(6)->endOfMonth()->toDateString(),
+        ]);
+        foreach ([2, 1, 0] as $monthsAgo) {
+            $date = $thisMonth->subMonthsNoOverflow($monthsAgo)->day(2);
+            if ($date->lte($today)) {
+                $goal->contributions()->create(['user_id' => $user->id, 'amount' => 150, 'date' => $date, 'note' => 'Monthly saving']);
+            }
+        }
+
+        $this->command?->info('Demo account ready: username "demo", password "password".');
     }
 }
-

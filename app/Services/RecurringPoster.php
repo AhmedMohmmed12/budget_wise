@@ -69,6 +69,10 @@ class RecurringPoster
             });
         }
 
+        if ($posted > 0) {
+            BudgetAlerts::check($user);
+        }
+
         return $posted;
     }
 }

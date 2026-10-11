@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Http\Controllers\Concerns\SafeReturn;
 use App\Http\Requests\ExpenseRequest;
 use App\Models\Expense;
+use App\Services\BudgetAlerts;
 use App\Support\EntryWindow;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
@@ -18,6 +19,7 @@ class ExpenseController extends Controller
     public function store(ExpenseRequest $request): JsonResponse|RedirectResponse
     {
         $expense = $request->user()->expenses()->create($request->validated());
+        BudgetAlerts::check($request->user());
 
         if ($request->wantsJson()) {
             return response()->json(['success' => true, 'expense' => $expense], 201);
@@ -47,6 +49,7 @@ class ExpenseController extends Controller
         $this->authorize('update', $expense);
 
         $expense->update($request->validated());
+        BudgetAlerts::check($request->user());
 
         return redirect($this->safeReturn($request->input('return')))->with('success', 'Saved.');
     }

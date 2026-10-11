@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Expense;
 use App\Models\Income;
+use App\Services\BudgetAlerts;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -53,6 +54,10 @@ class TrashController extends Controller
         abort_unless($entry->trashed(), 404);
 
         $entry->restore();
+
+        if ($entry instanceof Expense) {
+            BudgetAlerts::check($entry->user);
+        }
 
         return back()->with('success', 'Restored.');
     }
