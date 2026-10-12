@@ -26,7 +26,7 @@
 
             <p class="num mt-1 font-mono text-sm">
                 @money($goal->savedAmount()) <span class="text-ink-soft">of @money($goal->target_amount)</span>
-                @if ($goal->target_date) <span class="text-ink-soft">· by {{ $goal->target_date->format('M Y') }}</span> @endif
+                @if ($goal->target_date) <span class="ml-1 text-ink-soft">· by {{ $goal->target_date->format('M Y') }}</span> @endif
             </p>
             <div class="bar mt-2"><span class="!bg-pine" style="width: {{ $goal->percentage() }}%"></span></div>
 
