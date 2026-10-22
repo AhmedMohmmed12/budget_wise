@@ -1,5 +1,5 @@
 # Use official PHP 8.3 Apache image
-FROM php:8.3-apache
+FROM php:8.3.36-apache
 
 # -------------------------
 # 1. Install system dependencies
